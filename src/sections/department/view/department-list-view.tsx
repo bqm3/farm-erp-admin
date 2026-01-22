@@ -1,8 +1,6 @@
-'use client';
-
 import orderBy from 'lodash/orderBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-// @mui
+
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
@@ -11,27 +9,28 @@ import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
-// routes
+
 import { paths } from 'src/routes/paths';
-// components
 import Iconify from 'src/components/iconify';
 import EmptyContent from 'src/components/empty-content';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
-
 import axiosInstance from 'src/utils/axios';
+import { updateDepartment } from 'src/api/department';
+import { getUsersAndManagersByFarm } from 'src/api/user';
+import { useSnackbar } from 'src/components/snackbar';
 
-import FarmList from '../department-list';
+import DepartmentList from '../department-list';
 import DepartmentEditDialog from '../department-edit-dialog';
 import DepartmentCreateDialog from '../department-create-dialog';
 
 // -------------------- TYPES --------------------
-export type IFarmManager = {
+export type IUserLite = {
   id: number;
   username: string;
   full_name: string;
 };
 
-export type IFarmItem = {
+export type IDepartmentItem = {
   id: number;
   farm_id: number;
   code: string;
@@ -40,50 +39,49 @@ export type IFarmItem = {
   isDelete: boolean;
   created_at: string;
   updated_at: string;
-  employeeCount: number;
-  manager: IFarmManager | null;
+  memberCount: number;
+  manager: IUserLite | null;
 };
 
-type IFarmListResponse = {
+type IListResponse = {
   page: number;
   limit: number;
   total: number;
-  data: IFarmItem[];
+  data: IDepartmentItem[];
 };
 
-// -------------------- CONFIG --------------------
 const API_URL = '/api/departments';
 type SortKey = 'latest' | 'oldest' | 'name_asc' | 'name_desc';
 
-// -------------------- COMPONENT --------------------
-export default function FarmListView() {
-  // server state
+export function DepartmentListView() {
+  const { enqueueSnackbar } = useSnackbar();
+
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
 
-  // ui state
   const [sortBy, setSortBy] = useState<SortKey>('latest');
   const [search, setSearch] = useState('');
 
-  // edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [current, setCurrent] = useState<any>(null);
+  const [currentIdDepartment, setCurrentIdDepartment] = useState<number | null>(null);
 
-  // create dialog ✅
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
 
-  // data state
   const [loading, setLoading] = useState(false);
-  const [resp, setResp] = useState<IFarmListResponse>({
+  const [resp, setResp] = useState<IListResponse>({
     page: 1,
     limit: 20,
     total: 0,
     data: [],
   });
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(resp.total / resp.limit)), [resp.total, resp.limit]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(resp.total / resp.limit)),
+    [resp.total, resp.limit]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -112,10 +110,27 @@ export default function FarmListView() {
   const openEdit = useCallback(async (id: number) => {
     setEditLoading(true);
     setEditOpen(true);
+    setCurrentIdDepartment(id);
+
     try {
-      const r = await axiosInstance.get(`/api/departments/${id}`);
-      // NOTE: endpoint detail của bạn đang trả { data: {...}, userCount: ... }
-      setCurrent(r.data?.data ?? r.data);
+      // 1) lấy detail khu vực
+      const deptRes = await axiosInstance.get(`${API_URL}/${id}`);
+      const dept = deptRes.data?.data ?? deptRes.data;
+
+      // 2) lấy users + managers theo farm
+      // farm_id phải có trong dept
+      const farmRes = await getUsersAndManagersByFarm(Number(dept.farm_id));
+
+      // 3) attach list vào current để dialog dùng
+      setCurrent({
+        ...dept,
+        users: farmRes.data?.users ?? [],
+        managers: farmRes.data?.managers ?? [],
+        farm: farmRes.data?.farm ?? null,
+      });
+    } catch (e) {
+      console.error(e);
+      setCurrent(null);
     } finally {
       setEditLoading(false);
     }
@@ -124,19 +139,22 @@ export default function FarmListView() {
   const closeEdit = useCallback(() => {
     setEditOpen(false);
     setCurrent(null);
+    setCurrentIdDepartment(null);
   }, []);
 
-  const submitEdit = useCallback(
+  const handleSubmit = useCallback(
     async (payload: any) => {
-      if (!current?.id) return;
-      const r = await axiosInstance.put(`/api/departments/${current.id}`, payload);
-      setCurrent(r.data?.data ?? r.data);
-      fetchData(); // ✅ refresh list
+      if (!currentIdDepartment) return;
+
+      await updateDepartment(currentIdDepartment, payload);
+      enqueueSnackbar('Cập nhật khu vực thành công', { variant: 'success' });
+
+      fetchData();
+      closeEdit();
     },
-    [current?.id, fetchData]
+    [currentIdDepartment, enqueueSnackbar, fetchData, closeEdit]
   );
 
-  // create handlers ✅
   const openCreate = useCallback(() => setCreateOpen(true), []);
   const closeCreate = useCallback(() => setCreateOpen(false), []);
 
@@ -144,9 +162,9 @@ export default function FarmListView() {
     async (payload: any) => {
       setCreateLoading(true);
       try {
-        await axiosInstance.post(`/api/departments`, payload);
+        await axiosInstance.post(API_URL, payload);
         setCreateOpen(false);
-        fetchData(); // ✅ refresh list
+        fetchData();
       } finally {
         setCreateLoading(false);
       }
@@ -154,10 +172,8 @@ export default function FarmListView() {
     [fetchData]
   );
 
-  // local fallback
   const dataFiltered = useMemo(() => {
     let input = [...(resp.data || [])];
-
     const q = search.trim().toLowerCase();
     if (q) input = input.filter((x) => `${x.code} ${x.name}`.toLowerCase().includes(q));
 
@@ -182,25 +198,11 @@ export default function FarmListView() {
 
   const notFound = !loading && dataFiltered.length === 0;
 
-  const handleSearchChange = useCallback((v: string) => {
-    setPage(1);
-    setSearch(v);
-  }, []);
-
-  const handleSortChange = useCallback((v: SortKey) => {
-    setPage(1);
-    setSortBy(v);
-  }, []);
-
-  const handlePageChange = useCallback((nextPage: number) => {
-    setPage(nextPage);
-  }, []);
-
   return (
     <Container maxWidth={false}>
       <CustomBreadcrumbs
-        heading="Danh sách trang trại"
-        links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'List' }]}
+        heading="Danh sách khu vực"
+        links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Khu vực' }]}
         action={
           <Button
             variant="contained"
@@ -216,15 +218,18 @@ export default function FarmListView() {
       {/* Filters */}
       <Stack
         spacing={2}
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
+        direction={{ xs: 'column', md: 'row' }}
+        alignItems={{ xs: 'stretch', md: 'center' }}
         justifyContent="space-between"
         sx={{ mb: { xs: 3, md: 4 } }}
       >
         <TextField
           value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Tìm theo mã / tên trang trại..."
+          onChange={(e) => {
+            setPage(1);
+            setSearch(e.target.value);
+          }}
+          placeholder="Tìm theo mã / tên khu vực..."
           fullWidth
           InputProps={{
             startAdornment: (
@@ -239,7 +244,14 @@ export default function FarmListView() {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Sắp xếp:
           </Typography>
-          <Select size="small" value={sortBy} onChange={(e) => handleSortChange(e.target.value as SortKey)}>
+          <Select
+            size="small"
+            value={sortBy}
+            onChange={(e) => {
+              setPage(1);
+              setSortBy(e.target.value as SortKey);
+            }}
+          >
             <MenuItem value="latest">Mới nhất</MenuItem>
             <MenuItem value="oldest">Cũ nhất</MenuItem>
             <MenuItem value="name_asc">Tên A→Z</MenuItem>
@@ -250,11 +262,11 @@ export default function FarmListView() {
 
       {notFound && <EmptyContent title="No Data" filled sx={{ py: 10 }} />}
 
-      <FarmList
+      <DepartmentList
         farms={dataFiltered}
         page={page}
         totalPages={totalPages}
-        onPageChange={handlePageChange}
+        onPageChange={setPage}
         onEditRow={openEdit}
       />
 
@@ -263,10 +275,9 @@ export default function FarmListView() {
         loading={editLoading}
         data={current}
         onClose={closeEdit}
-        onSubmit={submitEdit}
+        onSubmit={handleSubmit}
       />
 
-      {/* ✅ Create dialog */}
       <DepartmentCreateDialog
         open={createOpen}
         loading={createLoading}

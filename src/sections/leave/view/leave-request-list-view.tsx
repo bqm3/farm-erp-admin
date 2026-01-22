@@ -31,7 +31,7 @@ import {
   type LeaveStatus,
   type LeaveType,
 } from 'src/api/leave';
-
+import LeaveCreateDialog from '../leave-create-dialog';
 import LeaveRejectDialog from '../leave-reject-dialog';
 
 // --- helpers ---
@@ -76,6 +76,8 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
   const { enqueueSnackbar } = useSnackbar();
 
   const [loading, setLoading] = useState(false);
+
+  const [createOpen, setCreateOpen] = useState(false);
 
   // filters
   const [q, setQ] = useState('');
@@ -157,14 +159,26 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
     <Container maxWidth="xl">
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h4">Đơn nghỉ phép</Typography>
-        <Button
-          variant="outlined"
-          onClick={fetchData}
-          startIcon={<Iconify icon="solar:refresh-bold" />}
-          disabled={loading}
-        >
-          Tải lại
-        </Button>
+       <Stack direction="row" spacing={1}>
+          {canApprove && (
+            <Button
+              variant="contained"
+              onClick={() => setCreateOpen(true)}
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+            >
+              Tạo đơn
+            </Button>
+          )}
+
+          <Button
+            variant="outlined"
+            onClick={fetchData}
+            startIcon={<Iconify icon="solar:refresh-bold" />}
+            disabled={loading}
+          >
+            Tải lại
+          </Button>
+        </Stack>
       </Stack>
 
       <Card sx={{ p: 2, mb: 2 }}>
@@ -281,7 +295,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
                     <TableCell>{typeLabel(r.leave_type)}</TableCell>
                     <TableCell>{fmtDate(r.from_date)}</TableCell>
                     <TableCell>{fmtDate(r.to_date)}</TableCell>
-                    <TableCell>{r.total_days}</TableCell>
+                    <TableCell>{Number(r.total_days)}</TableCell>
                     <TableCell sx={{ maxWidth: 320 }}>
                       <Typography variant="body2" noWrap title={r.reason || ''}>
                         {r.reason || '-'}
@@ -357,6 +371,13 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
         onClose={() => setRejectOpen(false)}
         requestId={rejectId}
         onSubmit={handleRejectSubmit}
+      />
+
+      <LeaveCreateDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        canCreateForOthers={canApprove}
+        onCreated={fetchData}
       />
     </Container>
   );

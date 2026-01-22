@@ -1,6 +1,6 @@
 /* eslint-disable arrow-body-style */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -44,9 +44,16 @@ export default function WorkCycleStaffDialog({
     await onSubmit({ staff_ids: staffIds, note: note.trim() });
   };
 
+  useEffect(() => {
+  if (!open) {
+    setStaffIds([]);
+    setNote('');
+  }
+}, [open]);
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Gắn staff làm việc</DialogTitle>
+      <DialogTitle>Gắn nhân viên làm việc</DialogTitle>
 
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>

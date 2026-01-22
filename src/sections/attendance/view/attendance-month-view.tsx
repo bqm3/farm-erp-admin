@@ -18,7 +18,7 @@ import {
   IconButton,
   Divider,
 } from '@mui/material';
-
+import Checkbox from '@mui/material/Checkbox';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 
@@ -45,6 +45,22 @@ export default function AttendanceMonthView() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<{ id: number; name: string } | null>(null);
 
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  const allIds = useMemo(() => rows.map((r) => r.employee_id), [rows]);
+  const selectedCount = selectedIds.length;
+
+  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < rows.length;
+
+  const toggleOne = useCallback((id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedIds((prev) => (prev.length === rows.length ? [] : allIds));
+  }, [allIds, rows.length]);
+
   const yearOptions = useMemo(() => {
     const y = init.year;
     return [y - 1, y, y + 1, y + 2];
@@ -55,9 +71,11 @@ export default function AttendanceMonthView() {
       setLoading(true);
       const res = await getMonthUsers(month, year);
       setRows(res.data.users || []);
+      setSelectedIds([]); // reset
     } catch (e: any) {
       enqueueSnackbar(e?.message || 'Lỗi tải dữ liệu chấm công', { variant: 'error' });
       setRows([]);
+      setSelectedIds([]);
     } finally {
       setLoading(false);
     }
@@ -79,18 +97,29 @@ export default function AttendanceMonthView() {
 
   const onCloseMonth = useCallback(async () => {
     try {
-      const res = await closeAttendance(month, year);
+      const payload =
+        selectedIds.length > 0
+          ? { month, year, employeeIds: selectedIds }
+          : { month, year, closeAll: true };
+
+      const res = await closeAttendance(payload);
+
       if (res?.ok) {
         enqueueSnackbar(res?.message || 'Đã chốt chấm công', { variant: 'success' });
+
+        const errs = res?.data?.errors || [];
+        if (errs.length) {
+          enqueueSnackbar(`Có ${errs.length} nhân viên chốt lỗi`, { variant: 'warning' });
+        }
       } else {
         enqueueSnackbar(res?.message || 'Chốt chấm công thất bại', { variant: 'error' });
       }
-      // reload list (nếu backend cập nhật trạng thái)
+
       fetchData();
     } catch (e: any) {
       enqueueSnackbar(e?.message || 'Lỗi chốt chấm công', { variant: 'error' });
     }
-  }, [enqueueSnackbar, fetchData, month, year]);
+  }, [enqueueSnackbar, fetchData, month, year, selectedIds]);
 
   return (
     <Container maxWidth="xl">
@@ -138,14 +167,21 @@ export default function AttendanceMonthView() {
 
             <Stack flexGrow={1} />
 
-            <Tooltip title="Chốt chấm công tháng này">
+            <Tooltip
+              title={
+                selectedCount > 0
+                  ? `Chốt ${selectedCount} nhân viên đã chọn`
+                  : 'Chốt tất cả nhân viên trong tháng'
+              }
+            >
               <Button
                 color="warning"
                 variant="contained"
                 startIcon={<Iconify icon="solar:lock-bold" />}
                 onClick={onCloseMonth}
+                disabled={loading || rows.length === 0}
               >
-                Chốt chấm công
+                {selectedCount > 0 ? `Chốt (${selectedCount})` : 'Chốt chấm công'}
               </Button>
             </Tooltip>
           </Stack>
@@ -161,6 +197,15 @@ export default function AttendanceMonthView() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={isAllSelected}
+                        indeterminate={isIndeterminate}
+                        onChange={toggleAll}
+                        inputProps={{ 'aria-label': 'select all' }}
+                      />
+                    </TableCell>
+
                     <TableCell>Nhân viên</TableCell>
                     <TableCell width={140}>Tài khoản</TableCell>
                     <TableCell width={140} align="right">
@@ -185,33 +230,52 @@ export default function AttendanceMonthView() {
                 </TableHead>
 
                 <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.employee_id} hover>
-                      <TableCell>
-                        <Stack spacing={0.25}>
-                          <Typography variant="subtitle2">{r.full_name || '-'}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {r.username}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>{r?.department?.name} | {r?.department?.code}</TableCell>
-                      <TableCell align="right">{r.total_checkin_days}</TableCell>
-                      <TableCell align="right">{r.present_days}</TableCell>
-                      <TableCell align="right">{r.late_days}</TableCell>
-                      <TableCell align="right">{Number(r.total_overtime_hours || 0)}</TableCell>
-                      <TableCell align="right">
-                        {Number(r.total_overtime_amount || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="Xem chi tiết theo ngày">
-                          <IconButton onClick={() => onOpenDetail(r)}>
-                            <Iconify icon="solar:eye-bold" />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {rows.map((r) => {
+                    const checked = selectedIds.includes(r.employee_id);
+
+                    return (
+                      <TableRow
+                        key={r.employee_id}
+                        hover
+                        selected={checked}
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => toggleOne(r.employee_id)}
+                      >
+                        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={checked} onChange={() => toggleOne(r.employee_id)} />
+                        </TableCell>
+
+                        <TableCell>
+                          <Stack spacing={0.25}>
+                            <Typography variant="subtitle2">{r.full_name || '-'}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {r.username}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+
+                        <TableCell>
+                          {r?.department?.name} | {r?.department?.code}
+                        </TableCell>
+
+                        <TableCell align="right">{r.total_checkin_days}</TableCell>
+                        <TableCell align="right">{r.present_days}</TableCell>
+                        <TableCell align="right">{r.late_days}</TableCell>
+                        <TableCell align="right">{Number(r.total_overtime_hours || 0)}</TableCell>
+                        <TableCell align="right">
+                          {Number(r.total_overtime_amount || 0).toLocaleString()}
+                        </TableCell>
+
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          <Tooltip title="Xem chi tiết theo ngày">
+                            <IconButton onClick={() => onOpenDetail(r)}>
+                              <Iconify icon="solar:eye-bold" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
 
                   {rows.length === 0 && (
                     <TableRow>

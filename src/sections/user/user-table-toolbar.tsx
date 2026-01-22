@@ -22,7 +22,7 @@ type Props = {
   filters: IUserTableFilters;
   onFilters: (name: string, value: IUserTableFilterValue) => void;
   //
-  roleOptions: string[];
+  roleOptions: { value: string; label: string }[];
 };
 
 export default function UserTableToolbar({
@@ -51,102 +51,71 @@ export default function UserTableToolbar({
   );
 
   return (
-    <>
-      <Stack
-        spacing={2}
-        alignItems={{ xs: 'flex-end', md: 'center' }}
-        direction={{
-          xs: 'column',
-          md: 'row',
-        }}
+    <Stack
+      spacing={2}
+      alignItems={{ xs: 'flex-end', md: 'center' }}
+      direction={{
+        xs: 'column',
+        md: 'row',
+      }}
+      sx={{
+        p: 2.5,
+        pr: { xs: 2.5, md: 1 },
+      }}
+    >
+      <FormControl
         sx={{
-          p: 2.5,
-          pr: { xs: 2.5, md: 1 },
+          flexShrink: 0,
+          width: { xs: 1, md: 200 },
         }}
       >
-        <FormControl
-          sx={{
-            flexShrink: 0,
-            width: { xs: 1, md: 200 },
+        <InputLabel>Chức vụ</InputLabel>
+
+        <Select
+          multiple
+          value={filters.role}
+          onChange={handleFilterRole}
+          input={<OutlinedInput label="Chức vụ" />}
+          renderValue={(selected) =>
+            roleOptions
+              .filter((opt) => selected.includes(opt.value))
+              .map((opt) => opt.label)
+              .join(', ')
+          }
+          MenuProps={{
+            PaperProps: {
+              sx: { maxHeight: 240 },
+            },
           }}
         >
-          <InputLabel>Role</InputLabel>
+          {roleOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              <Checkbox disableRipple size="small" checked={filters.role.includes(option.value)} />
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
-          <Select
-            multiple
-            value={filters.role}
-            onChange={handleFilterRole}
-            input={<OutlinedInput label="Role" />}
-            renderValue={(selected) => selected.map((value) => value).join(', ')}
-            MenuProps={{
-              PaperProps: {
-                sx: { maxHeight: 240 },
-              },
-            }}
-          >
-            {roleOptions.map((option) => (
-              <MenuItem key={option} value={option}>
-                <Checkbox disableRipple size="small" checked={filters.role.includes(option)} />
-                {option}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <Stack direction="row" alignItems="center" spacing={2} flexGrow={1} sx={{ width: 1 }}>
+        <TextField
+          fullWidth
+          value={filters.name}
+          onChange={handleFilterName}
+          placeholder="Search..."
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
 
-        <Stack direction="row" alignItems="center" spacing={2} flexGrow={1} sx={{ width: 1 }}>
-          <TextField
-            fullWidth
-            value={filters.name}
-            onChange={handleFilterName}
-            placeholder="Search..."
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <IconButton onClick={popover.onOpen}>
-            <Iconify icon="eva:more-vertical-fill" />
-          </IconButton>
-        </Stack>
+        <IconButton onClick={popover.onOpen}>
+          <Iconify icon="eva:more-vertical-fill" />
+        </IconButton>
       </Stack>
-
-      <CustomPopover
-        open={popover.open}
-        onClose={popover.onClose}
-        arrow="right-top"
-        sx={{ width: 140 }}
-      >
-        <MenuItem
-          onClick={() => {
-            popover.onClose();
-          }}
-        >
-          <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            popover.onClose();
-          }}
-        >
-          <Iconify icon="solar:import-bold" />
-          Import
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            popover.onClose();
-          }}
-        >
-          <Iconify icon="solar:export-bold" />
-          Export
-        </MenuItem>
-      </CustomPopover>
-    </>
+    </Stack>
   );
 }

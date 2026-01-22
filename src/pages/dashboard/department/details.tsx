@@ -2,7 +2,7 @@ import { Helmet } from 'react-helmet-async';
 // routes
 import { useParams } from 'src/routes/hooks';
 // sections
-import { FarmDetailPage } from 'src/sections/department/view';
+import { DepartmentDetailPage } from 'src/sections/department/view';
 
 // ----------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ export default function DepartmentDetailsPage() {
         <title> Khu vực</title>
       </Helmet>
 
-      <FarmDetailPage id={`${id}`} />
+      <DepartmentDetailPage id={`${id}`} />
     </>
   );
 }

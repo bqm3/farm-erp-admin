@@ -22,11 +22,12 @@ export type IChatMessage = {
 export type IChatParticipant = {
   id: string;
   name: string;
+  full_name: string;
   role: string;
   email: string;
   address: string;
   avatarUrl: string;
-  phoneNumber: string;
+  phone: string;
   lastActivity: Date;
   status: 'online' | 'offline' | 'alway' | 'busy';
 };

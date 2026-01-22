@@ -7,6 +7,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 // hooks
 import { useMockedUser } from 'src/hooks/use-mocked-user';
+import { useAuthContext } from 'src/auth/hooks';
 // types
 import { IChatParticipant, IChatMessage } from 'src/types/chat';
 // components
@@ -19,21 +20,37 @@ import { useGetMessage } from './hooks';
 type Props = {
   message: IChatMessage;
   participants: IChatParticipant[];
+  contactsById?: Record<string, IChatParticipant>; 
   onOpenLightbox: (value: string) => void;
 };
 
-export default function ChatMessageItem({ message, participants, onOpenLightbox }: Props) {
-  const { user } = useMockedUser();
+export default function ChatMessageItem({ message, participants, contactsById, onOpenLightbox }: Props) {
+  const { user } = useAuthContext();
 
   const { me, senderDetails, hasImage } = useGetMessage({
     message,
     participants,
+    contactsById,
     currentUserId: `${user?.id}`,
   });
 
   const { firstName, avatarUrl } = senderDetails;
+  console.log('senderDetails', senderDetails , message)
 
-  const { body, createdAt } = message;
+    const { body, createdAt, text } = message as any;
+
+  const createdAtDate: Date = (() => {
+    // Firestore Timestamp
+    if (createdAt?.toDate) return createdAt.toDate();
+
+    // Date object
+    if (createdAt instanceof Date) return createdAt;
+
+    // string/number
+    const d = new Date(createdAt);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
+  })();
+
 
   const renderInfo = (
     <Typography
@@ -48,9 +65,10 @@ export default function ChatMessageItem({ message, participants, onOpenLightbox 
       }}
     >
       {!me && `${firstName},`} &nbsp;
-      {formatDistanceToNowStrict(new Date(createdAt), {
+            {formatDistanceToNowStrict(createdAtDate, {
         addSuffix: true,
       })}
+
     </Typography>
   );
 
@@ -89,7 +107,7 @@ export default function ChatMessageItem({ message, participants, onOpenLightbox 
           }}
         />
       ) : (
-        body
+        text
       )}
     </Stack>
   );
@@ -146,7 +164,7 @@ export default function ChatMessageItem({ message, participants, onOpenLightbox 
           }}
         >
           {renderBody}
-          {renderActions}
+          {/* {renderActions} */}
         </Stack>
       </Stack>
     </Stack>

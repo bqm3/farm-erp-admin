@@ -89,7 +89,7 @@ export default function UserTableRow({
             color={(role === 'STAFF' && 'secondary') || (role === 'MANAGER' && 'info') || (role === 'ACCOUNTANT' && 'error') || 'default'}
             sx={{ textTransform: 'capitalize' }}
           >
-            {role}
+            {(role === 'STAFF' && 'Nhân viên') || (role === 'MANAGER' && 'Quản lý') || (role === 'ACCOUNTANT' && 'Kế toán') || 'Không xác định'}
           </Label>
         </TableCell>
 
@@ -112,7 +112,7 @@ export default function UserTableRow({
             color={(status === 'banned' && 'error') || 'success'}
             sx={{ textTransform: 'capitalize' }}
           >
-            {status}
+            {status === 'ACTIVE' ? 'Hoạt động' : 'Đóng'}
           </Label>
         </TableCell>
 

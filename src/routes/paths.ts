@@ -120,19 +120,34 @@ export const paths = {
         edit: `${ROOTS.DASHBOARD}/user/${MOCK_ID}/edit`,
       },
     },
+    project: {
+      root: `${ROOTS.DASHBOARD}/project`,
+      list: `${ROOTS.DASHBOARD}/project/list`,
+    },
+    fund: {
+      root: `${ROOTS.DASHBOARD}/fund`,
+      list: `${ROOTS.DASHBOARD}/fund/list`,
+    },
+    partner: {
+      root: `${ROOTS.DASHBOARD}/partner`,
+      list: `${ROOTS.DASHBOARD}/partner/list`,
+    },
     warehouse: {
       root: `${ROOTS.DASHBOARD}/warehouse`,
       list: `${ROOTS.DASHBOARD}/warehouse/list`,
     },
-     attendance: {
+    attendance: {
       root: `${ROOTS.DASHBOARD}/attendance`,
       list: `${ROOTS.DASHBOARD}/attendance/list`,
+      checkIn: `${ROOTS.DASHBOARD}/attendance/check-in`,
     },
-     leave: {
+    leave: {
       root: `${ROOTS.DASHBOARD}/leave`,
       list: `${ROOTS.DASHBOARD}/leave/list`,
-      balance:  `${ROOTS.DASHBOARD}/leave/balance`,
-      advance:  `${ROOTS.DASHBOARD}/leave/advance`,
+      list_user: `${ROOTS.DASHBOARD}/leave/list-user`,
+      balance: `${ROOTS.DASHBOARD}/leave/balance`,
+      advance: `${ROOTS.DASHBOARD}/leave/advance`,
+      advance_user: `${ROOTS.DASHBOARD}/leave/advance-user`,
     },
     category: {
       root: `${ROOTS.DASHBOARD}/items`,
@@ -149,9 +164,12 @@ export const paths = {
         edit: (id: string) => `${ROOTS.DASHBOARD}/species/${id}/edit`,
       },
     },
+
+    
     department: {
       root: `${ROOTS.DASHBOARD}/department`,
       list: `${ROOTS.DASHBOARD}/department/list`,
+      list_user: `${ROOTS.DASHBOARD}/department/list-user`,
       details: (id: string) => `${ROOTS.DASHBOARD}/department/${id}`,
       edit: (id: string) => `${ROOTS.DASHBOARD}/department/${id}/edit`,
       demo: {
@@ -163,13 +181,15 @@ export const paths = {
     workcycle: {
       root: `${ROOTS.DASHBOARD}/work-cycles`,
       list: `${ROOTS.DASHBOARD}/work-cycles/list`,
+      workcycle_user: `${ROOTS.DASHBOARD}/work-cycles/list-users`,
       details: (id: string) => `${ROOTS.DASHBOARD}/work-cycles/${id}`,
+      detail_user: (id: string) => `${ROOTS.DASHBOARD}/work-cycles/${id}/user`,
       edit: (id: string) => `${ROOTS.DASHBOARD}/work-cycles/${id}/edit`,
     },
     receipt: {
       root: `${ROOTS.DASHBOARD}/receipt`,
       list: `${ROOTS.DASHBOARD}/receipt/list`,
-      listAdmin: `${ROOTS.DASHBOARD}/receipt/admin/list`,
+      list_user: `${ROOTS.DASHBOARD}/receipt/list-user`,
       details: (id: string) => `${ROOTS.DASHBOARD}/receipt/${id}`,
       edit: (id: string) => `${ROOTS.DASHBOARD}/receipt/${id}/edit`,
     },

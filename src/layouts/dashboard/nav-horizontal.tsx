@@ -45,7 +45,7 @@ function NavHorizontal() {
         />
       </Toolbar>
 
-      <HeaderShadow />
+      {/* <HeaderShadow /> */}
     </AppBar>
   );
 }

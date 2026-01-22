@@ -14,7 +14,6 @@ import { fDateTime } from 'src/utils/format-time';
 import Iconify from 'src/components/iconify';
 import CustomPopover, { usePopover } from 'src/components/custom-popover';
 
-
 type Props = {
   farm: any;
   onView: VoidFunction;
@@ -22,10 +21,10 @@ type Props = {
   onDelete: VoidFunction;
 };
 
-export default function FarmItem({ farm, onView, onEdit, onDelete }: Props) {
+export default function DepartmentItem({ farm, onView, onEdit, onDelete }: Props) {
   const popover = usePopover();
 
-  const managerName = farm.manager?.full_name ||farm.manager?.username || 'Chưa gán quản lý';
+  const managerName = farm.manager?.full_name || farm.manager?.username || 'Chưa gán quản lý';
 
   return (
     <>
@@ -53,17 +52,17 @@ export default function FarmItem({ farm, onView, onEdit, onDelete }: Props) {
         {/* Info */}
         <Stack spacing={1.25} sx={{ px: 2.5, pb: 2.5 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ typography: 'body2' }}>
-            <Iconify icon="solar:user-id-bold" color="info.main"/>
+            <Iconify icon="solar:user-id-bold" color="info.main" />
             <Box component="span">{managerName}</Box>
           </Stack>
 
           <Stack direction="row" spacing={1} alignItems="center" sx={{ typography: 'body2' }}>
-            <Iconify icon="solar:users-group-rounded-bold" color="success.main"/>
+            <Iconify icon="solar:users-group-rounded-bold" color="success.main" />
             <Box component="span">{farm.employeeCount} nhân sự</Box>
           </Stack>
 
           <Stack direction="row" spacing={1} alignItems="center" sx={{ typography: 'body2' }}>
-            <Iconify icon="solar:clock-circle-bold" color="warning.main"/>
+            <Iconify icon="solar:clock-circle-bold" color="warning.main" />
             <Box component="span">Cập nhật: {fDateTime(farm.updated_at)}</Box>
           </Stack>
         </Stack>

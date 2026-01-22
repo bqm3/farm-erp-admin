@@ -1,3 +1,8 @@
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-continue */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-await-in-loop */
 /* eslint-disable no-nested-ternary */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -22,6 +27,10 @@ import {
   TextField,
   Grid,
   Alert,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 
 import { useSnackbar } from 'src/components/snackbar';
@@ -34,7 +43,11 @@ import {
   type SalaryAdvanceRow,
   type AttendanceDailyItem,
   type PayrollSummary,
+  getPayrollLogs,
+  type PayrollLogRow,
+  addPayrollAdjustment,
 } from 'src/api/attendance';
+import { useAuthContext } from 'src/auth/hooks';
 
 type Props = {
   open: boolean;
@@ -43,6 +56,15 @@ type Props = {
   month: number;
   year: number;
 };
+
+function logTypeLabel(t?: string) {
+  if (t === 'BONUS') return 'Thưởng';
+  if (t === 'DEDUCTION') return 'Phạt';
+  if (t === 'ALLOWANCE') return 'Phụ cấp';
+  if (t === 'OT_ADJUST') return 'Điều chỉnh OT';
+  if (t === 'SALARY_ADJUST') return 'Điều chỉnh lương cơ bản';
+  return t || '-';
+}
 
 function statusChip(status: string) {
   if (status === 'PRESENT') return <Chip label="Có mặt" color="success" size="small" />;
@@ -69,17 +91,6 @@ function money(v: any) {
   return n(v, 0).toLocaleString();
 }
 
-function fmtDate(d?: string | null) {
-  if (!d) return '-';
-  try {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return d;
-    return dt.toLocaleDateString('vi-VN');
-  } catch {
-    return d || '-';
-  }
-}
-
 function typeLabel(t?: string) {
   if (t === 'PAID') return 'Nghỉ phép (có lương)';
   if (t === 'UNPAID') return 'Nghỉ không lương';
@@ -93,8 +104,42 @@ function TabPanel(props: { value: number; index: number; children: any }) {
   return <Box sx={{ pt: 2 }}>{children}</Box>;
 }
 
+function sumAdjustments(preview: any, base: any) {
+  // +/- lấy theo basePayroll
+  const ot = n(base?.overtime_amount);
+  const bonus = n(base?.bonus_amount);
+  const allowance = n(base?.allowance_amount);
+  const plus = ot + bonus + allowance;
+
+  const penalty = n(base?.penalty_amount);
+  const advanceApproved = n(base?.advance_approved_amount);
+  const minus = penalty + advanceApproved;
+
+  // lương theo ngày công lấy theo preview
+  const salaryByDays = n(preview?.salary_by_days);
+
+  const netExpected = salaryByDays + plus - minus;
+
+  return { ot, bonus, allowance, penalty, advanceApproved, plus, minus, salaryByDays, netExpected };
+}
+
+function summarizeLogs(rows: PayrollLogRow[]) {
+  const byType: Record<string, number> = {};
+  let totalDeltaNet = 0;
+
+  for (const r of rows || []) {
+    const t = r.action_type || 'UNKNOWN';
+    byType[t] = (byType[t] || 0) + n((r as any).delta_field ?? r.amount);
+    totalDeltaNet += n((r as any).delta_net);
+  }
+
+  return { byType, totalDeltaNet };
+}
+
 export default function AttendanceDetailDialog({ open, onClose, employeeId, month, year }: Props) {
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuthContext();
+  const isAdmin = Boolean(user?.roles?.includes?.('ADMIN') || user?.role === 'ADMIN');
 
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState(0);
@@ -103,18 +148,23 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
   const [days, setDays] = useState<AttendanceDailyItem[]>([]);
   const [leaves, setLeaves] = useState<LeaveRequestRow[]>([]);
   const [advances, setAdvances] = useState<SalaryAdvanceRow[]>([]);
-  const [payroll, setPayroll] = useState<PayrollSummary | any>(null);
-  const [closing, setClosing] = useState<any>(null);
+  const [payrollPreview, setPayrollPreview] = useState<PayrollSummary | any>(null);
+  const [payrollClosing, setPayrollClosing] = useState<PayrollSummary | any>(null);
+  const [payrollFinal, setPayrollFinal] = useState<PayrollSummary | any>(null);
 
+  const [logs, setLogs] = useState<PayrollLogRow[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [closing, setClosing] = useState<any>(null);
   const [canEdit, setCanEdit] = useState<boolean>(false);
 
-  const [edit, setEdit] = useState({
-    salary_base: 0,
-    overtime_amount: 0,
-    bonus_amount: 0,
-    allowance_amount: 0,
-    penalty_amount: 0,
+  // ✅ Form điều chỉnh mới: nhập số tiền muốn +/-
+  const [adjustForm, setAdjustForm] = useState({
+    action_type: 'BONUS' as 'BONUS' | 'DEDUCTION' | 'ALLOWANCE' | 'OT_ADJUST' | 'SALARY_ADJUST',
+    amount: '',
+    direction: 1, // +1 = cộng, -1 = trừ
+    reason: '',
   });
+
   const [saving, setSaving] = useState(false);
 
   const title = useMemo(() => {
@@ -122,7 +172,6 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
     return `Chi tiết tháng ${month}/${year} - ${name}`;
   }, [employee?.full_name, employee?.username, employeeId, month, year]);
 
-  // ✅ Đã chốt thật sự khi có closed_at
   const isClosed = Boolean(closing?.closed_at);
 
   const loadDetail = useCallback(async () => {
@@ -130,26 +179,17 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
     try {
       setLoading(true);
       const res = await getUserMonthDetail(employeeId, month, year);
+      const data = res.data;
 
-      setEmployee(res.data.employee);
-      setDays(res.data.days || []);
-      setLeaves(res.data.leave_requests || []);
-      setAdvances(res.data.salary_advances || []);
-      setPayroll(res.data.payroll || null);
-      setClosing(res.data.closing || null);
-
-      setCanEdit(Boolean(res.data.can_edit));
-
-      const p = res.data.payroll;
-      if (p) {
-        setEdit({
-          salary_base: n(p.salary_base, 0),
-          overtime_amount: n(p.overtime_amount, 0),
-          bonus_amount: n(p.bonus_amount, 0),
-          allowance_amount: n(p.allowance_amount, 0),
-          penalty_amount: n(p.penalty_amount, 0),
-        });
-      }
+      setEmployee(data.employee);
+      setDays(data.days || []);
+      setLeaves(data.leave_requests || []);
+      setAdvances(data.salary_advances || []);
+      setPayrollPreview(data.payroll_preview || null);
+      setPayrollClosing(data.payroll_closing || null);
+      setPayrollFinal(data.payroll_final || null);
+      setClosing(data.closing || null);
+      setCanEdit(Boolean(data.can_edit));
     } catch (e: any) {
       enqueueSnackbar(e?.message || 'Lỗi tải chi tiết tháng', { variant: 'error' });
     } finally {
@@ -160,35 +200,53 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
   useEffect(() => {
     setTab(0);
     if (open) loadDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employeeId, month, year]);
 
-  const onSavePayroll = useCallback(async () => {
+  // ✅ Gửi điều chỉnh đơn giản: amount + direction
+  const onSubmitAdjustment = useCallback(async () => {
     if (!employeeId) return;
+
+    const amt = n(adjustForm.amount, 0);
+    if (amt <= 0) {
+      enqueueSnackbar('Số tiền phải > 0', { variant: 'error' });
+      return;
+    }
+
     try {
       setSaving(true);
-      const res = await updateUserPayroll(employeeId, {
+
+      const res = await addPayrollAdjustment(employeeId, {
         month,
         year,
-        salary_base: n(edit.salary_base, 0),
-        overtime_amount: n(edit.overtime_amount, 0),
-        bonus_amount: n(edit.bonus_amount, 0),
-        allowance_amount: n(edit.allowance_amount, 0),
-        penalty_amount: n(edit.penalty_amount, 0),
+        action_type: adjustForm.action_type,
+        amount: amt,
+        direction: adjustForm.direction,
+        reason: adjustForm.reason || null,
       });
 
-      if (res?.ok) {
-        enqueueSnackbar(res?.message || 'Đã cập nhật bảng lương tháng', { variant: 'success' });
-        await loadDetail();
-      } else {
-        enqueueSnackbar(res?.message || 'Cập nhật thất bại', { variant: 'error' });
+      if (!res?.ok) {
+        enqueueSnackbar(res?.message || 'Lưu thất bại', { variant: 'error' });
+        return;
       }
+
+      enqueueSnackbar('Đã ghi nhận điều chỉnh', { variant: 'success' });
+
+      // Reset form
+      setAdjustForm({
+        action_type: 'BONUS',
+        amount: '',
+        direction: 1,
+        reason: '',
+      });
+
+      await loadDetail();
+      if (isAdmin && tab === 4) await loadLogs();
     } catch (e: any) {
-      enqueueSnackbar(e?.message || 'Lỗi cập nhật bảng lương', { variant: 'error' });
+      enqueueSnackbar(e?.message || 'Lỗi điều chỉnh', { variant: 'error' });
     } finally {
       setSaving(false);
     }
-  }, [employeeId, edit, enqueueSnackbar, loadDetail, month, year]);
+  }, [employeeId, adjustForm, month, year, enqueueSnackbar, loadDetail, isAdmin, tab]);
 
   const onCloseAttendance = useCallback(async () => {
     if (!employeeId) return;
@@ -220,35 +278,46 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
     }
   }, [employeeId, enqueueSnackbar, loadDetail, month, year]);
 
-  // ✅ Preview đúng công thức prorate (theo effective_work_days)
-  const computedPreview = useMemo(() => {
-    if (!payroll) return null;
-
-    const salaryBase = n(edit.salary_base, payroll.salary_base);
-    const otAmount = n(edit.overtime_amount, payroll.overtime_amount);
-    const bonus = n(edit.bonus_amount, payroll.bonus_amount);
-    const allowance = n(edit.allowance_amount, payroll.allowance_amount);
-    const penalty = n(edit.penalty_amount, payroll.penalty_amount);
-
-    const wd = n(payroll.work_days_per_month, 0);
-    const eff = n(payroll.effective_work_days, 0);
-    const dailyRate = wd > 0 ? salaryBase / wd : 0;
-    const salaryByDays = dailyRate * eff;
-
-    const gross = salaryByDays + otAmount + bonus + allowance - penalty;
-    const net = gross - n(payroll.advance_approved_amount, 0);
-
-    return { dailyRate, salaryByDays, gross, net };
-  }, [edit, payroll]);
-
-  // ✅ Cảnh báo backend chưa tính effective_work_days
   const effectiveWarn = useMemo(() => {
-    if (!payroll) return null;
-    if (n(payroll.total_checkin_days, 0) > 0 && n(payroll.effective_work_days, 0) === 0) {
-      return 'Đang có check-in nhưng effective_work_days = 0. Backend cần tính effective_work_days (PRESENT/LATE + nghỉ phép có lương).';
+    const base = payrollPreview || payrollFinal;
+    if (!base) return null;
+    if (n(base.total_checkin_days, 0) > 0 && n(base.effective_work_days, 0) === 0) {
+      return 'Đang có check-in nhưng effective_work_days = 0...';
     }
     return null;
-  }, [payroll]);
+  }, [payrollPreview, payrollFinal]);
+
+  const loadLogs = useCallback(async () => {
+    if (!employeeId || !isAdmin) return;
+    try {
+      setLogsLoading(true);
+      const res = await getPayrollLogs(employeeId, month, year);
+      setLogs(res?.data || []);
+    } catch (e: any) {
+      enqueueSnackbar(e?.message || 'Lỗi tải logs', { variant: 'error' });
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [employeeId, enqueueSnackbar, isAdmin, month, year]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (isAdmin && tab === 4) {
+      loadLogs();
+    }
+  }, [tab, open, isAdmin, loadLogs]);
+
+  const basePayroll = payrollClosing || payrollFinal || payrollPreview;
+  const previewPayroll = payrollPreview || basePayroll;
+
+  const adjustPayroll = basePayroll || payrollPreview;
+
+  const calc = useMemo(
+    () => sumAdjustments(previewPayroll, adjustPayroll),
+    [previewPayroll, adjustPayroll]
+  );
+
+  const logSum = useMemo(() => summarizeLogs(logs), [logs]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
@@ -261,20 +330,35 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
           </Stack>
         ) : (
           <Stack spacing={2}>
-            {/* Header summary */}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems={{ md: 'center' }}
+            >
               <Box>
                 <Typography variant="subtitle1">{employee?.full_name || '-'}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  @{employee?.username || '-'} • Lương cơ bản: {money(employee?.salary_base)}
+                 <Typography variant="body2" color="text.secondary">
+                  @{employee?.username || '-'} • Lương cơ bản:{' '}
+                  {money(previewPayroll?.salary_base ?? employee?.salary_base)}
+
+                  {previewPayroll ? (
+                    <>
+                      {' '}
+                      • Ngày công: {n(previewPayroll.effective_work_days)}/
+                      {n(previewPayroll.work_days_per_month)} • Lương theo ngày:{' '}
+                      {money(previewPayroll.salary_by_days)} 
+                    </>
+                  ) : null}
                 </Typography>
               </Box>
 
               <Box flexGrow={1} />
 
-              {isClosed ? (
+               {isClosed ? (
                 <Chip
-                  label={`Đã chốt (${closing?.closed_at ? new Date(closing.closed_at).toLocaleString() : ''})`}
+                  label={`Đã chốt (${
+                    closing?.closed_at ? new Date(closing.closed_at).toLocaleString() : ''
+                  })`}
                   color="success"
                 />
               ) : (
@@ -282,31 +366,32 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
               )}
             </Stack>
 
-            {/* ✅ Mini summary payroll */}
-            {payroll ? (
+           {previewPayroll ? (
               <Grid container spacing={1}>
                 <Grid item xs={12} md={3}>
-                  <MiniStat label="Ngày công hiệu lực" value={`${n(payroll.effective_work_days)}/${n(payroll.work_days_per_month)}`} />
+                  <MiniStat
+                    label="Ngày công hiệu lực"
+                    value={`${n(previewPayroll.effective_work_days)}/${n(
+                      previewPayroll.work_days_per_month
+                    )}`}
+                  />
                 </Grid>
                 <Grid item xs={12} md={3}>
                   <MiniStat
                     label="Nghỉ có lương"
-                    value={`${n(payroll.paid_leave_days) + n(payroll.sick_leave_days)} ngày`}
-                    // sub={`PAID ${n(payroll.paid_leave_days)} • SICK ${n(payroll.sick_leave_days)}`}
+                    value={`${n(previewPayroll.paid_leave_days) + n(previewPayroll.sick_leave_days)} ngày`}
                   />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                  <MiniStat label="Đơn giá ngày" value={money(payroll.daily_rate)} />
+                  <MiniStat label="Đơn giá ngày" value={money(previewPayroll.daily_rate)} />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                  <MiniStat label="Lương theo ngày công" value={money(payroll.salary_by_days)} />
+                  <MiniStat label="Lương theo ngày công" value={money(previewPayroll.salary_by_days)} />
                 </Grid>
               </Grid>
             ) : null}
 
-            {effectiveWarn ? (
-              <Alert severity="warning">{effectiveWarn}</Alert>
-            ) : null}
+            {effectiveWarn ? <Alert severity="warning">{effectiveWarn}</Alert> : null}
 
             <Divider />
 
@@ -315,9 +400,10 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
               <Tab label={`Đơn nghỉ (${leaves.length})`} />
               <Tab label={`Ứng lương (${advances.length})`} />
               <Tab label="Lương & Tổng hợp" />
+              {isAdmin ? <Tab label={`Truy vết thay đổi (${logs.length})`} /> : null}
             </Tabs>
 
-            {/* TAB Chấm công theo ngày */}
+            {/* TAB 0: Chấm công */}
             <TabPanel value={tab} index={0}>
               <Alert severity="info" sx={{ mb: 2 }}>
                 Ngày không check-in sẽ để trống.
@@ -329,8 +415,12 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
                     <TableCell width={120}>Ngày</TableCell>
                     <TableCell width={140}>Trạng thái</TableCell>
                     <TableCell width={220}>Giờ check-in</TableCell>
-                    <TableCell width={120} align="right">Tăng ca (giờ)</TableCell>
-                    <TableCell width={160} align="right">Tăng ca (tiền)</TableCell>
+                    <TableCell width={120} align="right">
+                      Tăng ca (giờ)
+                    </TableCell>
+                    <TableCell width={160} align="right">
+                      Tăng ca (tiền)
+                    </TableCell>
                     <TableCell>Ghi chú</TableCell>
                   </TableRow>
                 </TableHead>
@@ -352,7 +442,7 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
               </Table>
             </TabPanel>
 
-            {/* TAB đơn nghỉ */}
+            {/* TAB 1: Đơn nghỉ */}
             <TabPanel value={tab} index={1}>
               <Table size="small">
                 <TableHead>
@@ -360,7 +450,9 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
                     <TableCell width={200}>Loại</TableCell>
                     <TableCell width={130}>Từ</TableCell>
                     <TableCell width={130}>Đến</TableCell>
-                    <TableCell width={120} align="right">Số ngày</TableCell>
+                    <TableCell width={120} align="right">
+                      Số ngày
+                    </TableCell>
                     <TableCell width={140}>Trạng thái</TableCell>
                     <TableCell>Lý do</TableCell>
                   </TableRow>
@@ -387,13 +479,15 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
               </Table>
             </TabPanel>
 
-            {/* TAB 2 */}
+            {/* TAB 2: Ứng lương */}
             <TabPanel value={tab} index={2}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell width={200}>Ngày yêu cầu</TableCell>
-                    <TableCell width={160} align="right">Số tiền</TableCell>
+                    <TableCell width={160} align="right">
+                      Số tiền
+                    </TableCell>
                     <TableCell width={140}>Trạng thái</TableCell>
                     <TableCell>Lý do</TableCell>
                   </TableRow>
@@ -418,133 +512,264 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
               </Table>
             </TabPanel>
 
-            {/* TAB 3 */}
+            {/* TAB 3: Lương */}
             <TabPanel value={tab} index={3}>
-              {!payroll ? (
+              {!previewPayroll ? (
                 <Alert severity="warning">Chưa có dữ liệu tổng hợp lương.</Alert>
               ) : (
                 <Stack spacing={2}>
+                  <CardBlock title="Tổng hợp nhanh">
+                    {/* ✅ salary_by_days dùng PREVIEW */}
+                    <Row label="Lương theo ngày công" value={money(previewPayroll.salary_by_days)} />
+
+                    {/* ✅ +/- dùng BASE */}
+                    <Row label="Tổng cộng (+) OT + Thưởng + Phụ cấp" value={money(calc.plus)} />
+                    <Row label="Tổng trừ (-) Phạt + Ứng lương đã duyệt" value={money(calc.minus)} />
+                    <Divider sx={{ my: 1 }} />
+
+                    {/* ✅ netExpected = preview.salary_by_days + plus - minus */}
+                    <Row label="Lương điều chỉnh" value={money(calc.netExpected)} />
+
+                  </CardBlock>
+
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
                       <CardBlock title="Ngày công & thống kê">
-                        <Row label="Ngày check-in" value={`${n(payroll.total_checkin_days)}`} />
-                        <Row label="Có mặt" value={`${n(payroll.present_days)}`} />
-                        <Row label="Đi trễ" value={`${n(payroll.late_days)}`} />
+                        {/* ✅ thống kê ngày dùng PREVIEW */}
+                        <Row label="Ngày check-in" value={`${n(previewPayroll.total_checkin_days)}`} />
+                        <Row label="Có mặt" value={`${n(previewPayroll.present_days)}`} />
+                        <Row label="Đi trễ" value={`${n(previewPayroll.late_days)}`} />
                         <Divider sx={{ my: 1 }} />
-                        <Row label="Nghỉ có lương (PAID)" value={`${n(payroll.paid_leave_days)} ngày`} />
-                        <Row label="Nghỉ ốm (SICK)" value={`${n(payroll.sick_leave_days)} ngày`} />
-                        <Row label="Nghỉ không lương (UNPAID)" value={`${n(payroll.unpaid_leave_days)} ngày`} />
+                        <Row
+                          label="Nghỉ có lương"
+                          value={`${n(previewPayroll.paid_leave_days)} ngày`}
+                        />
+                        <Row label="Nghỉ ốm" value={`${n(previewPayroll.sick_leave_days)} ngày`} />
+                        <Row
+                          label="Nghỉ không lương"
+                          value={`${n(previewPayroll.unpaid_leave_days)} ngày`}
+                        />
                         <Divider sx={{ my: 1 }} />
-                        <Row label="Ngày công hiệu lực" value={`${n(payroll.effective_work_days)} / ${n(payroll.work_days_per_month)}`} />
-                        <Row label="Đơn giá ngày" value={money(payroll.daily_rate)} />
-                        <Row label="Lương theo ngày công" value={money(payroll.salary_by_days)} />
+                        <Row
+                          label="Ngày công hiệu lực"
+                          value={`${n(previewPayroll.effective_work_days)} / ${n(
+                            previewPayroll.work_days_per_month
+                          )}`}
+                        />
+                        <Row label="Đơn giá ngày" value={money(previewPayroll.daily_rate)} />
+                        <Row label="Lương theo ngày công" value={money(previewPayroll.salary_by_days)} />
                       </CardBlock>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
                       <CardBlock title="Tiền lương">
-                        <Row label="Tăng ca (tiền)" value={money(payroll.overtime_amount)} />
-                        <Row label="Thưởng" value={money(payroll.bonus_amount)} />
-                        <Row label="Phụ cấp" value={money(payroll.allowance_amount)} />
-                        <Row label="Phạt" value={money(payroll.penalty_amount)} />
+                        {/* ✅ tiền cơ bản + tiền lương dùng PREVIEW */}
+                        <Row label="Lương cơ bản" value={money(previewPayroll.salary_base)} />
+
+                        {/* ✅ các khoản +/- dùng BASE */}
+                        <Row label="Tăng ca (tiền)" value={money(adjustPayroll?.overtime_amount)} />
+                        <Row label="Thưởng" value={money(adjustPayroll?.bonus_amount)} />
+                        <Row label="Phụ cấp" value={money(adjustPayroll?.allowance_amount)} />
+                        <Row label="Phạt" value={money(adjustPayroll?.penalty_amount)} />
                         <Divider sx={{ my: 1 }} />
-                        <Row label="Ứng lương (đã duyệt)" value={money(payroll.advance_approved_amount)} />
-                        <Row label="Ứng lương (chờ duyệt)" value={money(payroll.advance_pending_amount)} />
+                        <Row
+                          label="Ứng lương (đã duyệt)"
+                          value={money(adjustPayroll?.advance_approved_amount)}
+                        />
+                        <Row
+                          label="Ứng lương (chờ duyệt)"
+                          value={money(adjustPayroll?.advance_pending_amount)}
+                        />
                         <Divider sx={{ my: 1 }} />
-                        <Row label="Gross (hệ thống)" value={money(payroll.gross_amount)} />
-                        <Row label="Net (hệ thống)" value={money(payroll.net_amount)} />
-                        <Divider sx={{ my: 1 }} />
-                        <Row label="Gross (hiện tại)" value={computedPreview ? money(computedPreview.gross) : '-'} />
-                        <Row label="Net (hiện tại)" value={computedPreview ? money(computedPreview.net) : '-'} />
+
+                        <Row label="Lương hiện tại" value={money(previewPayroll.gross_amount)} />
+                        <Row label="Lương thực tế" value={money(calc.netExpected)} />
                       </CardBlock>
                     </Grid>
                   </Grid>
 
-                  <CardBlock title="Công thức tính (preview)">
-                    <Typography variant="body2" color="text.secondary">
-                      Lương hiện tại = (Lương cơ bản / ngày làm việc mỗi tháng) * ngày làm việc thực tế
-                      <br />
-                      Lương thực tế = Lương cơ bản + tăng ca + thưởng + phụ cấp - phạt - ứng lương đã duyệt
-                    </Typography>
-                  </CardBlock>
-
                   <Divider />
 
                   <CardBlock
-                    title="Chỉnh sửa (Admin)"
+                    title="Điều chỉnh lương (Admin)"
                     subtitle={
                       canEdit
                         ? isClosed
                           ? 'Tháng đã chốt: đang khóa chỉnh sửa'
-                          : 'Có thể chỉnh'
+                          : 'Nhập số tiền muốn cộng/trừ'
                         : 'Bạn không có quyền chỉnh'
                     }
                   >
-                    <Grid container spacing={2}>
+                    <Grid container spacing={2} mt={1}>
                       <Grid item xs={12} md={4}>
+                        <FormControl fullWidth disabled={!canEdit || isClosed}>
+                          <InputLabel>Loại điều chỉnh</InputLabel>
+                          <Select
+                            value={adjustForm.action_type}
+                            label="Loại điều chỉnh"
+                            onChange={(e) =>
+                              setAdjustForm((p) => ({
+                                ...p,
+                                action_type: e.target.value as any,
+                              }))
+                            }
+                          >
+                            <MenuItem value="SALARY_ADJUST">Lương cơ bản</MenuItem>
+                            <MenuItem value="OT_ADJUST">Tăng ca</MenuItem>
+                            <MenuItem value="BONUS">Thưởng</MenuItem>
+                            <MenuItem value="ALLOWANCE">Phụ cấp</MenuItem>
+                            <MenuItem value="DEDUCTION">Phạt</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} md={3}>
                         <TextField
-                          label="Lương cơ bản"
+                          label="Số tiền"
                           fullWidth
+                          type="number"
                           disabled={!canEdit || isClosed}
-                          value={edit.salary_base}
-                          onChange={(e) => setEdit((p) => ({ ...p, salary_base: n(e.target.value) }))}
+                          value={adjustForm.amount}
+                          onChange={(e) => setAdjustForm((p) => ({ ...p, amount: e.target.value }))}
+                          helperText="Nhập số tiền muốn +/-"
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={4}>
-                        <TextField
-                          label="Tăng ca (tiền)"
-                          fullWidth
-                          disabled={!canEdit || isClosed}
-                          value={edit.overtime_amount}
-                          onChange={(e) => setEdit((p) => ({ ...p, overtime_amount: n(e.target.value) }))}
-                        />
+                      <Grid item xs={12} md={2}>
+                        <FormControl fullWidth disabled={!canEdit || isClosed}>
+                          <InputLabel>Hành động</InputLabel>
+                          <Select
+                            value={adjustForm.direction}
+                            label="Hành động"
+                            onChange={(e) =>
+                              setAdjustForm((p) => ({
+                                ...p,
+                                direction: Number(e.target.value),
+                              }))
+                            }
+                          >
+                            <MenuItem value={1}>Cộng (+)</MenuItem>
+                            <MenuItem value={-1}>Trừ (-)</MenuItem>
+                          </Select>
+                        </FormControl>
                       </Grid>
 
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} md={3}>
                         <TextField
-                          label="Thưởng"
+                          label="Lý do"
                           fullWidth
                           disabled={!canEdit || isClosed}
-                          value={edit.bonus_amount}
-                          onChange={(e) => setEdit((p) => ({ ...p, bonus_amount: n(e.target.value) }))}
+                          value={adjustForm.reason}
+                          onChange={(e) => setAdjustForm((p) => ({ ...p, reason: e.target.value }))}
                         />
                       </Grid>
-
-                      <Grid item xs={12} md={4}>
-                        <TextField
-                          label="Phụ cấp"
-                          fullWidth
-                          disabled={!canEdit || isClosed}
-                          value={edit.allowance_amount}
-                          onChange={(e) => setEdit((p) => ({ ...p, allowance_amount: n(e.target.value) }))}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} md={4}>
-                        <TextField
-                          label="Phạt"
-                          fullWidth
-                          disabled={!canEdit || isClosed}
-                          value={edit.penalty_amount}
-                          onChange={(e) => setEdit((p) => ({ ...p, penalty_amount: n(e.target.value) }))}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} md={4} />
 
                       <Grid item xs={12}>
                         <Stack direction="row" spacing={2} justifyContent="flex-end">
-                          <Button variant="contained" onClick={onSavePayroll} disabled={!canEdit || isClosed || saving}>
-                            Lưu thay đổi
+                          <Button
+                            variant="contained"
+                            onClick={onSubmitAdjustment}
+                            disabled={!canEdit || isClosed || saving}
+                          >
+                            Ghi nhận điều chỉnh
                           </Button>
                         </Stack>
                       </Grid>
                     </Grid>
+
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <strong>Ví dụ:</strong> Muốn trừ 50,000đ phụ cấp → Chọn "Phụ cấp", nhập 50000,
+                      chọn "Trừ (-)". <br />
+                      Muốn cộng 100,000đ thưởng → Chọn "Thưởng", nhập 100000, chọn "Cộng (+)".
+                    </Alert>
                   </CardBlock>
                 </Stack>
               )}
             </TabPanel>
+
+            {/* TAB 4: Logs */}
+            {isAdmin ? (
+              <TabPanel value={tab} index={4}>
+                {logsLoading ? (
+                  <Stack alignItems="center" justifyContent="center" sx={{ py: 6 }}>
+                    <CircularProgress />
+                  </Stack>
+                ) : (
+                  <>
+                    <CardBlock
+                      title="Tổng hợp điều chỉnh (Admin)"
+                      subtitle="Cộng dồn từ logs trong tháng"
+                    >
+                      <Grid container spacing={1} mt={0.5}>
+                        <Grid item xs={12} md={3}>
+                          <MiniStat label="Tác động ròng" value={money(logSum.totalDeltaNet)} />
+                        </Grid>
+                        <Grid item xs={12} md={9}>
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                            {Object.entries(logSum.byType).map(([k, v]) => (
+                              <Chip
+                                key={k}
+                                label={`${logTypeLabel(k)}: ${money(v)}`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ mb: 1 }}
+                              />
+                            ))}
+                          </Stack>
+                        </Grid>
+                      </Grid>
+                    </CardBlock>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell width={170}>Thời gian</TableCell>
+                          <TableCell width={180}>Loại</TableCell>
+                          <TableCell width={140} align="right">
+                            Số tiền
+                          </TableCell>
+                          <TableCell width={140} align="right">
+                            Trước
+                          </TableCell>
+                          <TableCell width={140} align="right">
+                            Sau
+                          </TableCell>
+                          <TableCell width={180}>Người chỉnh</TableCell>
+                          <TableCell>Lý do</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {logs.map((l) => (
+                          <TableRow key={l.id} hover>
+                            <TableCell>{fmtTime(l.created_at || null)}</TableCell>
+                            <TableCell>{logTypeLabel(l.action_type)}</TableCell>
+                            <TableCell align="right">{money(l.amount)}</TableCell>
+                            <TableCell align="right">{money(l.before_value)}</TableCell>
+                            <TableCell align="right">{money(l.after_value)}</TableCell>
+                            <TableCell>
+                              {l.created_by_user?.full_name ||
+                                l.created_by_user?.username ||
+                                l.created_by ||
+                                '-'}
+                            </TableCell>
+                            <TableCell>{l.reason || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                        {logs.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                              Chưa có lịch sử thay đổi trong tháng
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+              </TabPanel>
+            ) : null}
           </Stack>
         )}
       </DialogContent>
@@ -599,7 +824,6 @@ function Row({ label, value }: { label: string; value: any }) {
   );
 }
 
-// ✅ NEW: nhỏ gọn cho header
 function MiniStat({ label, value, sub }: { label: string; value: any; sub?: string }) {
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.25 }}>

@@ -21,16 +21,25 @@ import {
   DialogActions,
 } from '@mui/material';
 import { useSnackbar } from 'src/components/snackbar';
-import { listAdvances, approveAdvance, rejectAdvance, type AdvanceRow, type AdvanceStatus } from 'src/api/advance';
+import {
+  listAdvances,
+  approveAdvance,
+  rejectAdvance,
+  type AdvanceRow,
+  type AdvanceStatus,
+} from 'src/api/advance';
+import AdvanceCreateDialog from '../advance-create-dialog';
 
 function statusChip(s: AdvanceStatus) {
-  if (s === 'SUBMITTED') return <Chip label="Chờ duyệt" size="small" color='info'/>;
+  if (s === 'SUBMITTED') return <Chip label="Chờ duyệt" size="small" color="info" />;
   if (s === 'APPROVED') return <Chip label="Đã duyệt" size="small" color="success" />;
   return <Chip label="Từ chối" size="small" color="error" />;
 }
 
 export default function AdvanceListView({ canApprove }: { canApprove?: boolean }) {
   const { enqueueSnackbar } = useSnackbar();
+
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [rows, setRows] = useState<AdvanceRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -45,9 +54,8 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
   const [rejectReason, setRejectReason] = useState('');
   const [selected, setSelected] = useState<AdvanceRow | null>(null);
 
-   const [approveOpen, setApproveOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [approveRow, setApproveRow] = useState<AdvanceRow | null>(null);
-
 
   const loadData = useCallback(async () => {
     const res = await listAdvances({ page, pageSize, status, q });
@@ -67,7 +75,7 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
     setApproveOpen(true);
   };
 
-   const onConfirmApprove = async () => {
+  const onConfirmApprove = async () => {
     if (!approveRow) return;
     try {
       const res = await approveAdvance(approveRow.id);
@@ -101,9 +109,16 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
   };
 
   return (
-     <Container maxWidth="xl">
+    <Container maxWidth="xl">
       <Stack spacing={2}>
-        <Typography variant="h4">Ứng lương</Typography>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h4">Ứng lương</Typography>
+
+          {/* Staff cũng thấy nút tạo; admin/HR vẫn có thể tạo nếu bạn muốn */}
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            Tạo phiếu
+          </Button>
+        </Stack>
 
         <Card sx={{ p: 2 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -155,17 +170,27 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
                   <TableRow key={r.id} hover>
                     <TableCell>{r.code}</TableCell>
                     <TableCell>{r.employee?.full_name || '-'}</TableCell>
-                    <TableCell>{new Date(r.receipt_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(r.request_date).toLocaleDateString()}</TableCell>
                     <TableCell align="right">{Number(r.amount || 0).toLocaleString()}</TableCell>
                     <TableCell>{statusChip(r.status)}</TableCell>
-                    <TableCell>{r.note || '-'}</TableCell>
+                    <TableCell>{r.reason || '-'}</TableCell>
                     <TableCell align="right">
                       {canApprove && r.status === 'SUBMITTED' ? (
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" color='success' variant="contained" onClick={() => onApprove(r)}>
+                          <Button
+                            size="small"
+                            color="success"
+                            variant="contained"
+                            onClick={() => onApprove(r)}
+                          >
                             Duyệt
                           </Button>
-                          <Button size="small" color="error" variant="outlined" onClick={() => onOpenReject(r)}>
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => onOpenReject(r)}
+                          >
                             Từ chối
                           </Button>
                         </Stack>
@@ -193,7 +218,13 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
           </Stack>
         </Card>
 
-         <Dialog
+        <AdvanceCreateDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => loadData()}
+        />
+
+        <Dialog
           open={approveOpen}
           onClose={() => {
             setApproveOpen(false);

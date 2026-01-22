@@ -1,9 +1,16 @@
 // src/api/receipts.ts
 import axiosInstance from 'src/utils/axios';
 
-export type ReceiptType = 'INCOME' | 'EXPENSE';
-export type ReceiptStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export type ReceiptType = 'THU' | 'CHI';
+export type ReceiptSubType = 'HARVEST' | 'SOLD';
+export type ReceiptStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type ReceiptSource = 'WAREHOUSE' | 'CASH' | 'BANK' | string;
+export type PaymentMethod = 'CASH' | 'BANK' | 'OTHER';
+
+export type ChangeRequestType = 'UPDATE' | 'CANCEL';
+export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 
 export type ReceiptLine = {
   id: number;
@@ -15,6 +22,7 @@ export type ReceiptLine = {
   qty: string | number;
   unit?: string | null;
 
+  unit_price: string | number;
   price: string | number;
   vat_percent: number;
 
@@ -25,11 +33,37 @@ export type ReceiptLine = {
   isDelete?: boolean;
 };
 
-export type Receipt = {
+export type ReceiptRow = {
   id: number;
   code: string;
   type: ReceiptType;
   subtype?: string | null;
+  payment_method: string;
+  source: string;
+  receipt_date: string;
+  month: number;
+  year: number;
+  status: ReceiptStatus;
+  work_cycle_id?: number | null;
+  warehouse_id?: number | null;
+  fund_id?: number | null;
+  total_amount?: number | null;
+  note?: string | null;
+  locked?: boolean;
+  lines?: ReceiptLine[];
+  computed?: {
+    total_qty: number;
+    amount_before_tax: number;
+    vat_amount: number;
+    amount_total: number;
+  };
+};
+
+export type Receipt = {
+  id: number;
+  code: string;
+  type: ReceiptType;
+  subtype?: ReceiptSubType |string | null;
   payment_method: string;
   source: ReceiptSource;
 
@@ -57,6 +91,14 @@ export type Receipt = {
   lines?: ReceiptLine[];
 };
 
+export type ReceiptLinePayload = {
+  item_id: number;
+  description?: string;
+  qty: number;
+  vat_percent?: number;
+  // price: backend sẽ set 0 cho EXPENSE/WAREHOUSE lúc tạo => có thể omit
+};
+
 export type ListReceiptsParams = {
   page?: number;
   limit?: number;
@@ -78,7 +120,7 @@ export type ListReceiptsResponse = {
 
 export type ReceiptCreatePayload = {
   type: ReceiptType;
-  subtype?: string | null;
+  subtype?: ReceiptSubType |string | null;
   payment_method: string;
   source: ReceiptSource;
 
@@ -97,9 +139,6 @@ export type ReceiptCreatePayload = {
     vat_percent?: number;
   }>;
 };
-
-export type ChangeRequestType = 'UPDATE' | 'CANCEL';
-export type ChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type ReceiptChangeRequest = {
   id: number;
@@ -169,6 +208,18 @@ export async function approveReceipt(id: number) {
   return res.data;
 }
 
+export async function rejectReceipt(id: number, payload : {
+  reason: string
+}) {
+  const res = await axiosInstance.post<{ ok: boolean; message: string }>(`/api/receipts/${id}/reject`, payload);
+
+  if (!res.data.ok) {
+    throw new Error(res.data.message || 'Duyệt phiếu thất bại');
+  }
+
+  return res.data;
+}
+
 export async function createReceiptChangeRequest(
   receiptId: number,
   payload: { request_type: ChangeRequestType; reason: string; proposed_payload?: any }
@@ -198,4 +249,23 @@ export async function rejectChangeRequest(reqId: number) {
     `/api/receipts/change-requests/${reqId}/reject`
   );
   return res.data;
+}
+
+
+export async function getReceiptsByWorkCycle(params: {
+  work_cycle_id: number;
+  page?: number;
+  limit?: number;
+  status?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  message?: string;
+}) {
+  const res = await axiosInstance.get('/api/receipts/by-workcycle', { params });
+  return res.data as {
+    ok: boolean;
+    data: ReceiptRow[];
+    paging: { page: number; limit: number; total: number; totalPages: number };
+  };
 }

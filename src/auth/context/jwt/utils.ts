@@ -60,15 +60,15 @@ export const tokenExpired = (exp: number) => {
 
 export const setSession = (accessToken: string | null) => {
   if (accessToken) {
-    sessionStorage.setItem('accessToken', accessToken);
-
+    
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    sessionStorage.setItem('accessToken', accessToken);
 
     // const { exp } = jwtDecode(accessToken);
     // tokenExpired(exp);
   } else {
-    sessionStorage.removeItem('accessToken');
-
+    
     delete axios.defaults.headers.common.Authorization;
+    sessionStorage.removeItem('accessToken');
   }
 };

@@ -22,7 +22,6 @@ type Props = {
   loading?: boolean;
   onClose: VoidFunction;
   onSubmit: (payload: {
-    farm_id: number;
     code: string;
     name: string;
     manager_user_id?: number | null;
@@ -30,30 +29,26 @@ type Props = {
 };
 
 type User = { id: number; username: string; full_name: string; email?: string };
-type Farm = { id: number; code?: string; name: string };
 
 export default function DepartmentCreateDialog({ open, loading, onClose, onSubmit }: Props) {
   const [error, setError] = useState<string>('');
 
-  const [farmId, setFarmId] = useState<number | ''>('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [managerId, setManagerId] = useState<number | ''>('');
 
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-  const [farms, setFarms] = useState<Farm[]>([]);
 
   const canSubmit = useMemo(() => {
-    return Boolean(farmId) && code.trim().length > 0 && name.trim().length > 0 && !loading && !loadingMeta;
-  }, [farmId, code, name, loading, loadingMeta]);
+    return code.trim().length > 0 && name.trim().length > 0 && !loading && !loadingMeta;
+  }, [ code, name, loading, loadingMeta]);
 
   useEffect(() => {
     if (!open) return;
 
     // reset form mỗi lần mở
     setError('');
-    setFarmId('');
     setCode('');
     setName('');
     setManagerId('');
@@ -62,14 +57,10 @@ export default function DepartmentCreateDialog({ open, loading, onClose, onSubmi
     (async () => {
       setLoadingMeta(true);
       try {
-        const [rFarms, rUsers] = await Promise.all([
-          axiosInstance.get('/api/farms?limit=200&page=1'),
+        const [ rUsers] = await Promise.all([
           axiosInstance.get('/api/users'),
         ]);
 
-        // farms: bạn đang trả { ok:true, data:[...] } hoặc {data:[...]} => normalize
-        const farmsData = rFarms.data?.data ?? rFarms.data?.rows ?? rFarms.data ?? [];
-        setFarms(Array.isArray(farmsData) ? farmsData : []);
 
         const usersData = rUsers.data?.data ?? rUsers.data ?? [];
         setUsers(Array.isArray(usersData) ? usersData : []);
@@ -89,12 +80,10 @@ export default function DepartmentCreateDialog({ open, loading, onClose, onSubmi
   const handleSubmit = async () => {
     setError('');
 
-    if (!farmId) return setError('Vui lòng chọn Farm');
     if (!code.trim()) return setError('Vui lòng nhập code');
     if (!name.trim()) return setError('Vui lòng nhập name');
 
     const payload = {
-      farm_id: Number(farmId),
       code: code.trim(),
       name: name.trim(),
       manager_user_id: managerId === '' ? null : Number(managerId),
@@ -119,21 +108,6 @@ export default function DepartmentCreateDialog({ open, loading, onClose, onSubmi
         )}
 
         <Stack spacing={2} mt={1}>
-          <TextField
-            select
-            label="Farm"
-            value={farmId}
-            onChange={(e) => setFarmId(e.target.value === '' ? '' : Number(e.target.value))}
-            disabled={loading || loadingMeta}
-            helperText="Chọn trang trại cha (farm_id)"
-          >
-            <MenuItem value="">-- Chọn farm --</MenuItem>
-            {farms.map((f) => (
-              <MenuItem key={f.id} value={f.id}>
-                {f.name} {f.code ? `(${f.code})` : ''}
-              </MenuItem>
-            ))}
-          </TextField>
 
           <TextField
             label="Code"
@@ -171,7 +145,6 @@ export default function DepartmentCreateDialog({ open, loading, onClose, onSubmi
             value={managerId}
             onChange={(e) => setManagerId(e.target.value === '' ? '' : Number(e.target.value))}
             disabled={loading || loadingMeta}
-            helperText="Danh sách user đã lọc loại ADMIN"
           >
             <MenuItem value="">-- Chưa gán --</MenuItem>
             {users.map((u) => (

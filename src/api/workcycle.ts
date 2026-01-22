@@ -54,7 +54,7 @@ export type WorkCycleUpdatePayload = Partial<Omit<WorkCycleCreatePayload, 'creat
   // tuỳ backend bạn
 };
 
-export type QuantityChangeType = 'INCREASE' | 'DECREASE';
+export type QuantityChangeType = 'TANG' | 'GIAM' | 'SINH'| 'CHET'| 'THU_HOACH'| 'BAN'| 'THEM';
 
 export type UpdateQuantityPayload = {
   change_type: QuantityChangeType;
@@ -77,6 +77,16 @@ export type QuantityLog = {
   created_by: number;
   created_at: string;
   creator?: { id: number; username: string; full_name: string };
+};
+
+export type FinanceSummary = {
+  work_cycle_id: number;
+  range: { from_date: string | null; to_date: string | null };
+  revenue: number;
+  expense: number;
+  profit: number;
+  expense_breakdown_by_subtype: { subtype: string; total_amount: number; count: number }[];
+  quantity_summary: { change_type: string; total_qty: number; count: number }[];
 };
 
 export type QuantityLogsResp = {
@@ -109,34 +119,68 @@ export type QuantityStatsResp = {
   };
 };
 
+export type FinanceVerbose = {
+  work_cycle_id: number;
+  range: { from_date: string | null; to_date: string | null };
+  totals: { revenue: number; expense: number; profit: number };
+  by_flow: { flow: 'INCOME' | 'EXPENSE'; flow_vi: string; sign: string; total_amount: number }[];
+  by_subtype: {
+    subtype: string;
+    subtype_vi: string;
+    flow: 'INCOME' | 'EXPENSE' | 'UNKNOWN';
+    flow_vi: string;
+    sign: '+' | '-';
+    total_amount: number;
+    count: number;
+  }[];
+  receipts: {
+    id: number;
+    code: string;
+    receipt_date: string;
+    status: string;
+    subtype: string;
+    subtype_vi: string;
+    flow: 'INCOME' | 'EXPENSE';
+    flow_vi: string;
+    sign: '+' | '-';
+    amount_total: number;
+  }[];
+  quantity_summary: {
+    change_type: string;
+    change_type_vi: string;
+    total_qty: number;
+    count: number;
+  }[];
+};
+
 export async function listWorkCycles(params: { page?: number; limit?: number; search?: string }) {
   const res = await axiosInstance.get<PagingResp<WorkCycle>>('/api/work-cycles', { params });
-  return res.data;
+  return res?.data;
 }
 
 export async function getWorkCycle(id: number) {
   const res = await axiosInstance.get<{ ok: boolean; data: WorkCycle }>(`/api/work-cycles/${id}`);
-  return res.data;
+  return res?.data;
 }
 
 export async function createWorkCycle(payload: WorkCycleCreatePayload) {
   const res = await axiosInstance.post<{ ok: boolean; data: WorkCycle }>(`/api/work-cycles`, payload);
-  return res.data;
+  return res?.data;
 }
 
 export async function updateWorkCycle(id: number, payload: WorkCycleUpdatePayload) {
   const res = await axiosInstance.put<{ ok: boolean; data: WorkCycle }>(`/api/work-cycles/${id}`, payload);
-  return res.data;
+  return res?.data;
 }
 
 export async function deleteWorkCycle(id: number) {
   const res = await axiosInstance.delete<{ ok: boolean }>(`/api/work-cycles/${id}`);
-  return res.data;
+  return res?.data;
 }
 
 export async function restoreWorkCycle(id: number) {
   const res = await axiosInstance.post<{ ok: boolean; data: WorkCycle }>(`/api/work-cycles/${id}/restore`);
-  return res.data;
+  return res?.data;
 }
 
 export async function updateQuantity(id: number, payload: UpdateQuantityPayload) {
@@ -144,17 +188,18 @@ export async function updateQuantity(id: number, payload: UpdateQuantityPayload)
     `/api/work-cycles/${id}/update-quantity`,
     payload
   );
-  return res.data;
+  console.log('res', res)
+  return res?.data;
 }
 
 export async function attachStaff(id: number, payload: { staff_ids: number[]; note?: string }) {
   const res = await axiosInstance.post<{ ok: boolean; data?: any }>(`/api/work-cycles/${id}/staff`, payload);
-  return res.data;
+  return res?.data;
 }
 
 export async function getQuantityLogs(id: number, params: { page?: number; limit?: number } = {}) {
   const res = await axiosInstance.get<QuantityLogsResp>(`/api/work-cycles/${id}/quantity-logs`, { params });
-  return res.data;
+  return res?.data;
 }
 
 export async function getQuantityStats(
@@ -162,7 +207,28 @@ export async function getQuantityStats(
   params: { start_date: string; end_date: string } // querystring
 ) {
   const res = await axiosInstance.get<QuantityStatsResp>(`/api/work-cycles/${id}/quantity-stats`, { params });
-  return res.data;
+  return res?.data;
 }
 
 
+export async function getWorkCycleFinanceSummary(
+   workCycleId: number | string,
+  params?: { from_date?: string; to_date?: string; include_pending?: boolean }
+) {
+  const res = await axiosInstance.get(`/api/work-cycles/${workCycleId}/finance-summary`, { params });
+  return res?.data as { ok: boolean; data: FinanceVerbose; message?: string };
+}
+
+export async function closeWorkCycle(workCycleId: number | string) {
+  const res = await axiosInstance.post(`/api/work-cycles/${workCycleId}/close`, {});
+  return res?.data as { ok: boolean; data?: any; message?: string };
+}
+
+
+// export async function getWorkCycleFinanceSummaryVerbose(
+//   workCycleId: number | string,
+//   params?: { from_date?: string; to_date?: string; include_pending?: boolean }
+// ) {
+//   const res = await axiosInstance.get(`/api/work-cycles/${workCycleId}/finance-summary`, { params });
+//   return res?.data as { ok: boolean; data: FinanceVerbose; message?: string };
+// }

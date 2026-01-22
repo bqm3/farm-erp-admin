@@ -41,26 +41,26 @@ function formatMoney(n: number) {
 
 export default function UserEditDialog({ open, onClose, onUpdated, userId, initialRow }: Props) {
   const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [farms, setFarms] = useState<any[]>([]);
   const [form, setForm] = useState<any>(null);
 
   const setField = (key: string, value: any) => setForm((p: any) => ({ ...p, [key]: value }));
 
-  // load departments + load user detail (hoặc dùng initialRow)
+  // load farms + load user detail (hoặc dùng initialRow)
   useEffect(() => {
     if (!open || !userId) return;
 
     (async () => {
-      // 1) load departments (fail cũng kệ)
+      // 1) load farms (fail cũng kệ)
       try {
-        const depsRes = await axiosInstance.get('/api/departments', {
+        const rFarms = await axiosInstance.get('/api/farms', {
           params: { page: 1, limit: 1000 },
         });
-        const depList = depsRes.data?.data ?? depsRes.data?.data?.data ?? [];
-        setDepartments(Array.isArray(depList) ? depList : []);
+        const farmsData = rFarms.data?.rows ?? rFarms.data ?? [];
+        setFarms(Array.isArray(farmsData) ? farmsData : []);
       } catch (e) {
-        console.error('Load departments failed', e);
-        setDepartments([]);
+        console.error('Load farms failed', e);
+        setFarms([]);
       }
 
       // 2) load user form
@@ -82,7 +82,7 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
             salary_base: Number(initialRow.salary_base || 0),
             status: (initialRow.status || 'ACTIVE').toUpperCase(),
             work_days_per_month: Number(initialRow.work_days_per_month || 26),
-            department_id: Number(initialRow.department_id || 1),
+            farm_id: Number(initialRow.farm_id || 1),
             roles:
               (initialRow.roles || []).map((r: any) => (typeof r === 'string' ? r : r.code)) || [],
           });
@@ -106,7 +106,7 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
           salary_base: Number(u.salary_base || 0),
           status: (u.status || 'ACTIVE').toUpperCase(),
           work_days_per_month: Number(u.work_days_per_month || 26),
-          department_id: Number(u.department_id || 1),
+          farm_id: Number(u.farm_id || 1),
           roles: (u.roles || []).map((r: any) => r.code),
         });
       } catch (e) {
@@ -144,7 +144,7 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
         salary_base: Number(form.salary_base),
         status: form.status, // ACTIVE/BANNED
         work_days_per_month: Number(form.work_days_per_month),
-        department_id: Number(form.department_id),
+        farm_id: Number(form.farm_id),
         roles: form.roles,
       };
 
@@ -161,7 +161,6 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
       setLoading(false);
     }
   };
-  console.log('form.salary_base', form);
 
   return (
     <Dialog
@@ -320,23 +319,6 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  label="Phòng ban / Trang trại"
-                  value={form.department_id}
-                  onChange={(e) => setField('department_id', Number(e.target.value))}
-                  fullWidth
-                >
-                  {departments.map((d) => (
-                    <MenuItem key={d.id} value={d.id}>
-                      {d.name}
-                      {d.manager?.full_name ? ` — QL: ${d.manager.full_name}` : ''}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel>Chức vụ</InputLabel>
                   <Select
@@ -355,6 +337,7 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
                   </Select>
                 </FormControl>
               </Grid>
+
             </Grid>
           </Stack>
         )}

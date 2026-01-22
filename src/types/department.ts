@@ -17,7 +17,7 @@ export type IDeparmentItem = {
   isDelete: boolean;
   created_at: Date;
   updated_at: Date;
-  employeeCount: number;
+  memberCount: number;
   manager: {
     id: number;
     username: string;

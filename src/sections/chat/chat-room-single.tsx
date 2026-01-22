@@ -21,7 +21,7 @@ type Props = {
 export default function ChatRoomSingle({ participant }: Props) {
   const collapse = useBoolean(true);
 
-  const { name, avatarUrl, role, address, phoneNumber, email } = participant;
+  const { name, avatarUrl, role, address, phone, email } = participant;
 
   const renderInfo = (
     <Stack alignItems="center" sx={{ py: 5 }}>
@@ -48,7 +48,7 @@ export default function ChatRoomSingle({ participant }: Props) {
       }}
     >
       <Box component="span" sx={{ flexGrow: 1 }}>
-        Information
+        Thông tin liên hệ
       </Box>
       <Iconify
         width={16}
@@ -77,7 +77,7 @@ export default function ChatRoomSingle({ participant }: Props) {
 
       <Stack direction="row">
         <Iconify icon="solar:phone-bold" />
-        <Typography variant="body2">{phoneNumber}</Typography>
+        <Typography variant="body2">{phone}</Typography>
       </Stack>
 
       <Stack direction="row">

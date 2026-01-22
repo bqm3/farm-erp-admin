@@ -2,7 +2,7 @@
 /* eslint-disable no-nested-ternary */
 // src/sections/work-cycle/work-cycle-quantity-dialog.tsx
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,27 +13,57 @@ import {
   TextField,
   MenuItem,
 } from '@mui/material';
+
 import type { QuantityChangeType, UpdateQuantityPayload } from 'src/api/workcycle';
+import { listQuantityUpdateTasks, type TaskLite } from 'src/api/task';
 
 type Props = {
   open: boolean;
   onClose: VoidFunction;
   onSubmit: (payload: UpdateQuantityPayload) => Promise<void>;
+  cycleId: number;
 };
 
-const CHANGE_TYPES: QuantityChangeType[] = ['INCREASE', 'DECREASE'];
+const CHANGE_TYPES: QuantityChangeType[] = ['TANG', 'GIAM', 'SINH', 'CHET'];
 
-export default function WorkCycleQuantityDialog({ open, onClose, onSubmit }: Props) {
+const CHANGE_TYPE_LABEL: Record<QuantityChangeType, string> = {
+  TANG: 'Tăng',
+  GIAM: 'Giảm',
+  SINH: 'Sinh',
+  CHET: 'Chết',
+  THU_HOACH: '',
+  BAN: '',
+  THEM: '',
+};
+
+export default function WorkCycleQuantityDialog({ open, onClose, onSubmit, cycleId }: Props) {
+  const [tasks, setTasks] = useState<TaskLite[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
   const [form, setForm] = useState<UpdateQuantityPayload>({
-    change_type: 'INCREASE',
+    change_type: 'TANG',
     quantity_change: 0,
     reason: '',
     log_date: '',
     task_id: null,
   });
 
+  useEffect(() => {
+    const run = async () => {
+      if (!open) return;
+      setLoadingTasks(true);
+      try {
+        const res = await listQuantityUpdateTasks({ cycle_id: cycleId, status: 'OPEN,PENDING' });
+        setTasks(res.data || []);
+      } finally {
+        setLoadingTasks(false);
+      }
+    };
+    run();
+  }, [open, cycleId]);
+
   const canSubmit = useMemo(() => {
-    return form.log_date && Number(form.quantity_change) > 0 && !!form.change_type;
+    return Number(form.quantity_change) > 0 && !!form.change_type;
   }, [form]);
 
   const handleChange = (key: keyof UpdateQuantityPayload) => (e: any) => {
@@ -44,8 +74,10 @@ export default function WorkCycleQuantityDialog({ open, onClose, onSubmit }: Pro
         key === 'quantity_change'
           ? Number(v)
           : key === 'task_id'
-            ? (v === '' ? null : Number(v))
-            : (v as any),
+          ? v === ''
+            ? null
+            : Number(v)
+          : (v as any),
     }));
   };
 
@@ -53,6 +85,7 @@ export default function WorkCycleQuantityDialog({ open, onClose, onSubmit }: Pro
     await onSubmit({
       ...form,
       reason: String(form.reason || '').trim(),
+      log_date: new Date().toString(),
     });
   };
 
@@ -62,10 +95,32 @@ export default function WorkCycleQuantityDialog({ open, onClose, onSubmit }: Pro
 
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField select label="Loại thay đổi" value={form.change_type} onChange={handleChange('change_type')}>
+          {/* NEW: select task QUANTITY_UPDATE */}
+          <TextField
+            select
+            label="Task QUANTITY_UPDATE (tuỳ chọn)"
+            value={form.task_id ?? ''}
+            onChange={handleChange('task_id')}
+            disabled={loadingTasks}
+            helperText={loadingTasks ? 'Đang tải task...' : 'Chọn task để gắn log (nếu có)'}
+          >
+            <MenuItem value="">(Không chọn)</MenuItem>
+            {tasks.map((t) => (
+              <MenuItem key={t.id} value={t.id}>
+                #{t.id} - {t.title} ({t.status})
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label="Loại thay đổi"
+            value={form.change_type}
+            onChange={handleChange('change_type')}
+          >
             {CHANGE_TYPES.map((t) => (
               <MenuItem key={t} value={t}>
-                {t === 'INCREASE' ? 'Tăng' : t === 'DECREASE' ? 'Giảm' : t}
+                {CHANGE_TYPE_LABEL[t]}
               </MenuItem>
             ))}
           </TextField>
@@ -73,28 +128,12 @@ export default function WorkCycleQuantityDialog({ open, onClose, onSubmit }: Pro
           <TextField
             label="Số lượng thay đổi"
             type="number"
-            
             value={form.quantity_change}
             onChange={handleChange('quantity_change')}
             required
           />
 
-          <TextField
-            label="Ngày ghi log (yyyy-MM-dd)"
-            value={form.log_date}
-            onChange={handleChange('log_date')}
-            required
-            placeholder="2025-12-29"
-          />
-
           <TextField label="Lý do" value={form.reason} onChange={handleChange('reason')} />
-
-          <TextField
-            label="Task ID (tuỳ chọn)"
-            value={form.task_id ?? ''}
-            onChange={handleChange('task_id')}
-            placeholder="để trống nếu không có"
-          />
         </Stack>
       </DialogContent>
 

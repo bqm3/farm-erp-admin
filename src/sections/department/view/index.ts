@@ -1,4 +1,4 @@
-export { default as FarmListView } from './department-list-view';
-// export { default as DepartmentEditView } from './department-edit-view';
-// export { default as DepartmentCreateView } from './department-create-view';
-export { default as FarmDetailPage } from './department-detail-view';
+export { DepartmentListView } from './department-list-view';
+export { DepartmentUserListView } from './user-department-list-view';
+export { default as DepartmentDetailPage } from './department-detail-view';
+export { default as DepartmentUserDetailPage } from './user-department-detail-view';

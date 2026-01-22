@@ -78,7 +78,7 @@ export default function WarehouseManageView() {
   // movements
   const [movements, setMovements] = useState<WarehouseMovement[]>([]);
   const [openReceiptDlg, setOpenReceiptDlg] = useState(false);
-  const [defaultReceiptType, setDefaultReceiptType] = useState<'INCOME' | 'EXPENSE'>('INCOME');
+  const [defaultReceiptType, setDefaultReceiptType] = useState<'THU' | 'CHI'>('THU');
 
   const selectedWarehouseId = selectedWarehouse?.id ?? 0;
 
@@ -367,7 +367,7 @@ export default function WarehouseManageView() {
                         {(s.item?.code ? `${s.item.code} - ` : '') + (s.item?.name || '')}
                       </TableCell>
                       <TableCell align="right">{formatNumber(s.qty || 0)}</TableCell>
-                      <TableCell align="right">{formatVND(s.unit_cost || 0)}</TableCell>
+                      <TableCell align="right">{formatVND(s.unit_price || 0)}</TableCell>
                       <TableCell align="right">{formatVND(s.total_cost || 0)}</TableCell>
                       <TableCell align="right">
                         <IconButton onClick={() => onOpenSetQty(s)} title="Thiết lập">
@@ -400,7 +400,7 @@ export default function WarehouseManageView() {
                 disabled={!selectedWarehouseId}
                 onClick={() => {
                   // tuỳ bạn: hỏi user chọn nhập/xuất hoặc làm 2 nút
-                  setDefaultReceiptType('INCOME'); // hoặc 'EXPENSE'
+                  setDefaultReceiptType('THU'); // hoặc 'EXPENSE'
                   setOpenReceiptDlg(true);
                 }}
               >
@@ -444,7 +444,7 @@ export default function WarehouseManageView() {
                         {(m.item?.code ? `${m.item.code} - ` : '') + (m.item?.name || '')}
                       </TableCell>
                       <TableCell align="right">{formatNumber(m.qty || 0)}</TableCell>
-                      <TableCell align="right">{formatVND(m.price || 0)}</TableCell>
+                      <TableCell align="right">{formatVND(m.unit_price || 0)}</TableCell>
                       <TableCell align="right">{fPercent(m.vat_percent || 0)}</TableCell>
                       <TableCell align="right">{formatVND(m.amount_total || 0)}</TableCell>
                       <TableCell>{m?.receipt?.code || '-'}</TableCell>

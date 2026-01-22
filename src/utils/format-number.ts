@@ -53,3 +53,12 @@ export function formatVND(value: any) {
     maximumFractionDigits: 0,
   }).format(n);
 }
+
+export function formatMoney(n: number) {
+  return (Number.isFinite(n) ? n : 0).toLocaleString('vi-VN');
+}
+
+export function parseMoneyToNumber(s: string) {
+  const cleaned = (s || '').replace(/[^\d]/g, '');
+  return cleaned ? Number(cleaned) : 0;
+}

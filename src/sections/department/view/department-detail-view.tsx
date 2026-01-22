@@ -49,7 +49,7 @@ type Department = {
   created_at?: string;
   updated_at?: string;
   manager?: { id: number; full_name: string } | null;
-  employees?: Employee[];
+  members?: Employee[];
 };
 
 const statusColor = (s?: string) => {
@@ -59,7 +59,7 @@ const statusColor = (s?: string) => {
   return 'default' as const;
 };
 
-export default function FarmDetailPage({ id }: Props) {
+export default function DepartmentDetailPage({ id }: Props) {
   const [loading, setLoading] = useState(true);
   const [resp, setResp] = useState<any>(null);
 
@@ -88,12 +88,12 @@ export default function FarmDetailPage({ id }: Props) {
   }, [id]);
 
   const dept: Department | null = resp?.data ?? null;
-  const employees: any[] = dept?.employees ?? [];
+  const members: any[] = dept?.members ?? [];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return employees.filter((e) => {
+    return members.filter((e) => {
       const okStatus = status === 'ALL' ? true : (e.status || '') === status;
       if (!okStatus) return false;
 
@@ -111,7 +111,7 @@ export default function FarmDetailPage({ id }: Props) {
 
       return hay.includes(q);
     });
-  }, [employees, search, status]);
+  }, [members, search, status]);
 
   const paged = useMemo(() => {
     const start = page * rowsPerPage;
@@ -156,7 +156,7 @@ export default function FarmDetailPage({ id }: Props) {
             variant="outlined"
             label={`Quản lý: ${dept.manager?.full_name || 'Chưa gán'}`}
           />
-          <Chip size="small" color="info" variant="outlined" label={`Nhân viên: ${employees.length}`} />
+          <Chip size="small" color="info" variant="outlined" label={`Nhân viên: ${members.length}`} />
         </Stack>
       </Stack>
 
@@ -196,7 +196,7 @@ export default function FarmDetailPage({ id }: Props) {
         </CardContent>
       </Card>
 
-      {/* Employees table */}
+      {/* members table */}
       <Card>
         <CardContent sx={{ pb: 1 }}>
           <Stack
@@ -244,7 +244,6 @@ export default function FarmDetailPage({ id }: Props) {
           <Table size="medium">
             <TableHead>
               <TableRow>
-                <TableCell width={80}>ID</TableCell>
                 <TableCell>Nhân viên</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell width={140}>SĐT</TableCell>
@@ -258,7 +257,6 @@ export default function FarmDetailPage({ id }: Props) {
             <TableBody>
               {paged.map((e) => (
                 <TableRow key={e.id} hover>
-                  <TableCell>{e.id}</TableCell>
 
                   <TableCell>
                     <Stack spacing={0.2}>

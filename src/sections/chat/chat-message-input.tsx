@@ -13,6 +13,8 @@ import { useMockedUser } from 'src/hooks/use-mocked-user';
 import uuidv4 from 'src/utils/uuidv4';
 // api
 import { sendMessage, createConversation } from 'src/api/chat';
+import { useAuthContext } from 'src/auth/hooks'; // dùng user thật
+import { apiSendDm } from 'src/api/firebase';
 // components
 import Iconify from 'src/components/iconify';
 // types
@@ -37,7 +39,8 @@ export default function ChatMessageInput({
 }: Props) {
   const router = useRouter();
 
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+   const myUid = useMemo(() => String(user?.id ?? ''), [user?.id]);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +60,21 @@ export default function ChatMessageInput({
     }),
     [user]
   );
+
+   const getToUserIdFromThreadId = useCallback(
+    (threadId: string) => {
+      // threadId format: farmId_uidA_uidB
+      const parts = String(threadId).split('_');
+      const a = parts[1];
+      const b = parts[2];
+      if (!a || !b) return null;
+      const other = a === myUid ? b : a;
+      const n = Number(other);
+      return Number.isFinite(n) ? n : null;
+    },
+    [myUid]
+  );
+
 
   const messageData = useMemo(
     () => ({
@@ -91,28 +109,33 @@ export default function ChatMessageInput({
     setMessage(event.target.value);
   }, []);
 
-  const handleSendMessage = useCallback(
+   const handleSendMessage = useCallback(
     async (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== 'Enter') return;
+
+      const text = message.trim();
+      if (!text) return;
+
       try {
-        if (event.key === 'Enter') {
-          if (message) {
-            if (selectedConversationId) {
-              await sendMessage(selectedConversationId, messageData);
-            } else {
-              const res = await createConversation(conversationData);
+        // đã có thread => send DM
+        if (selectedConversationId) {
+          const toUserId = getToUserIdFromThreadId(selectedConversationId);
+          if (!toUserId) throw new Error('threadId không hợp lệ, không tách được to_user_id');
 
-              router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
-
-              onAddRecipients([]);
-            }
-          }
+          await apiSendDm(toUserId, text);
+          // Firestore listener sẽ tự update UI
           setMessage('');
+          return;
         }
+
+        // chưa có thread => UI của bạn đang start DM ở ChatHeaderCompose rồi
+        // ở đây cứ clear message, hoặc bạn có thể disable input khi chưa có selectedConversationId
+        setMessage('');
       } catch (error) {
         console.error(error);
       }
     },
-    [conversationData, message, messageData, onAddRecipients, router, selectedConversationId]
+    [getToUserIdFromThreadId, message, selectedConversationId]
   );
 
   return (

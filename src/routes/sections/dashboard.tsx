@@ -39,7 +39,9 @@ const UserEditPage = lazy(() => import('src/pages/dashboard/user/edit'));
 
 // DEPARTMENT
 const DepartmentListPage = lazy(() => import('src/pages/dashboard/department/list'));
+const DepartmentUserListPage = lazy(() => import('src/pages/dashboard/department/list-user'));
 const DepartmentDetailsPage = lazy(() => import('src/pages/dashboard/department/details'));
+const DepartmentUserDetailsPage = lazy(() => import('src/pages/dashboard/department/details-user'));
 
 // CATEGORY / ITEMS
 const CategoryItemListPage = lazy(() => import('src/pages/dashboard/items/list-item'));
@@ -50,22 +52,33 @@ const WarehouseListPage = lazy(() => import('src/pages/dashboard/warehouse/list'
 
 // ATTENDANCE
 const AttendanceMonthListPage = lazy(() => import('src/pages/dashboard/attendance/list'));
-
+const AttendanceCheckInPage = lazy(() => import('src/pages/dashboard/attendance/check-in'));
 // LEAVE
 const LeaveRequestPage = lazy(() => import('src/pages/dashboard/leave/request'));
+const LeaveUserRequestPage = lazy(() => import('src/pages/dashboard/leave/user-request'));
 const LeaveBalancePage = lazy(() => import('src/pages/dashboard/leave/balance'));
 const AdvancePage = lazy(() => import('src/pages/dashboard/leave/advance'));
+const AdvanceUserPage = lazy(() => import('src/pages/dashboard/leave/user-advance'));
 
 // SPECIES
 const SpeciesListPage = lazy(() => import('src/pages/dashboard/species/list'));
 
+// FARMS
+const FarmListPage = lazy(() => import('src/pages/dashboard/farm/list'));
+// FUND
+const FundPage = lazy(() => import('src/pages/dashboard/fund/list'));
+// PARTNER
+const PartnerPage = lazy(() => import('src/pages/dashboard/partner/list'));
+
 // WORK CYCLE
 const WorkCycleDetailsPage = lazy(() => import('src/pages/dashboard/workcycle/detail'));
+const WorkCycleUserDetailsPage = lazy(() => import('src/pages/dashboard/workcycle/detail-user'));
 const WorkCycleListPage = lazy(() => import('src/pages/dashboard/workcycle/list'));
+const WorkCycleUserListPage = lazy(() => import('src/pages/dashboard/workcycle/list-users'));
 
 // RECEIPT
+const ReceiptUserListPage = lazy(() => import('src/pages/dashboard/receipt/list-user'));
 const ReceiptListPage = lazy(() => import('src/pages/dashboard/receipt/list'));
-const ReceiptListAdminPage = lazy(() => import('src/pages/dashboard/receipt/list-admin'));
 
 // BLOG
 const BlogPostsPage = lazy(() => import('src/pages/dashboard/post/list'));
@@ -147,7 +160,9 @@ export const dashboardRoutes = [
         children: [
           { element: <DepartmentListPage />, index: true },
           { path: 'list', element: <DepartmentListPage /> },
-          { path: ':id', element: <DepartmentDetailsPage /> }
+          { path: 'list-user', element: <DepartmentUserListPage /> },
+          { path: ':id', element: <DepartmentDetailsPage /> },
+          { path: ':id/user', element: <DepartmentUserDetailsPage /> }
         ]
       },
        {
@@ -155,7 +170,8 @@ export const dashboardRoutes = [
         children: [
           { element: <ReceiptListPage />, index: true },
           { path: 'list', element: <ReceiptListPage /> },
-          { path: 'admin/list', element: <ReceiptListAdminPage /> }
+          { path: 'list-user', element: <ReceiptUserListPage /> }
+          
         ]
       },
       {
@@ -167,6 +183,34 @@ export const dashboardRoutes = [
           { path: 'list', element: <WarehouseListPage /> },
         ]
       },
+       {
+        path: 'project',
+        children: [
+          {
+            element: <FarmListPage />, index: true
+          },
+          { path: 'list', element: <FarmListPage /> },
+        ]
+      },
+       {
+        path: 'fund',
+        children: [
+          {
+            element: <FundPage />, index: true
+          },
+          { path: 'list', element: <FundPage /> },
+        ]
+      },
+       {
+        path: 'partner',
+        children: [
+          {
+            element: <PartnerPage />, index: true
+          },
+          { path: 'list', element: <PartnerPage /> },
+        ]
+      },
+      
       {
         path: 'leave',
         children: [
@@ -174,7 +218,9 @@ export const dashboardRoutes = [
             element: <LeaveRequestPage />, index: true
           },
           { path: 'advance', element: <AdvancePage /> },
+          { path: 'advance-user', element: <AdvanceUserPage /> },
           { path: 'list', element: <LeaveRequestPage /> },
+          { path: 'list-user', element: <LeaveUserRequestPage /> },
           { path: 'balance', element: <LeaveBalancePage /> },
         ]
       },
@@ -184,7 +230,9 @@ export const dashboardRoutes = [
         children: [
           { element: <WorkCycleListPage />, index: true },
           { path: 'list', element: <WorkCycleListPage /> },
-          { path: ':id', element: <WorkCycleDetailsPage /> }
+          { path: 'list-users', element: <WorkCycleUserListPage /> },
+          { path: ':id', element: <WorkCycleDetailsPage /> },
+          { path: ':id/user', element: <WorkCycleUserDetailsPage /> },
         ]
       },
       {
@@ -193,6 +241,7 @@ export const dashboardRoutes = [
           {
             element: <AttendanceMonthListPage />, index: true
           },
+          { path: 'check-in', element: <AttendanceCheckInPage /> },
           { path: 'list', element: <AttendanceMonthListPage /> },
         ]
       },

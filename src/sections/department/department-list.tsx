@@ -8,7 +8,7 @@ import Pagination, { paginationClasses } from '@mui/material/Pagination';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import FarmItem from './department-item';
+import DepartmentItem from './department-item';
 
 type Props = {
   farms: any[];
@@ -45,7 +45,7 @@ export default function FarmList({ farms, page, totalPages, onPageChange, onEdit
         }}
       >
         {farms.map((farm) => (
-          <FarmItem
+          <DepartmentItem
             key={farm.id}
             farm={farm}
             onView={() => handleView(farm.id)}

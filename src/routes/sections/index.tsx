@@ -25,25 +25,21 @@ export default function Router() {
     // SET INDEX PAGE WITH HOME PAGE
     {
       path: '/',
-      element: (
-        <MainLayout>
-          <HomePage />
-        </MainLayout>
-      ),
+      element: <Navigate to="/dashboard" replace />
     },
 
     // Auth routes
     ...authRoutes,
-    ...authDemoRoutes,
+    // ...authDemoRoutes,
 
     // Dashboard routes
     ...dashboardRoutes,
 
     // Main routes
-    ...mainRoutes,
+    // ...mainRoutes,
 
     // Components routes
-    ...componentsRoutes,
+    // ...componentsRoutes,
 
     // No match 404
     { path: '*', element: <Navigate to="/404" replace /> },

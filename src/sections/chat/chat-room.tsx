@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import uniq from 'lodash/uniq';
 import flatten from 'lodash/flatten';
 import { useEffect, useCallback } from 'react';
@@ -66,11 +67,11 @@ export default function ChatRoom({ participants, conversation }: Props) {
     <>
       {group ? (
         <ChatRoomGroup participants={participants} />
-      ) : (
+      ) : participants?.[0] ? (
         <ChatRoomSingle participant={participants[0]} />
-      )}
+      ) : null}
 
-      <ChatRoomAttachments attachments={attachments} />
+      {/* <ChatRoomAttachments attachments={attachments} /> */}
     </>
   );
 

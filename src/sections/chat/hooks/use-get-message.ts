@@ -1,34 +1,34 @@
-// types
 import { IChatParticipant, IChatMessage } from 'src/types/chat';
 
-// ----------------------------------------------------------------------
-
 type Props = {
-  message: IChatMessage;
+  message: IChatMessage & { from?: string; senderId?: string };
   currentUserId: string;
   participants: IChatParticipant[];
+  contactsById?: Record<string, IChatParticipant>;
 };
 
-export default function useGetMessage({ message, participants, currentUserId }: Props) {
-  const sender = participants.find((participant) => participant.id === message.senderId);
+function firstNameOf(s?: string) {
+  const t = (s ?? '').trim();
+  return t ? t.split(/\s+/)[0] : 'Unknown';
+}
 
-  const senderDetails =
-    message.senderId === currentUserId
-      ? {
-          type: 'me',
-        }
-      : {
-          avatarUrl: sender?.avatarUrl,
-          firstName: sender?.name.split(' ')[0],
-        };
+export default function useGetMessage({ message, participants, currentUserId, contactsById }: Props) {
+  const senderId = String((message as any).senderId ?? (message as any).from ?? '');
+  const me = senderId === String(currentUserId);
 
-  const me = senderDetails.type === 'me';
+  const sender =
+    participants.find((p) => String(p.id) === senderId) ||
+    (contactsById ? contactsById[senderId] : undefined);
 
-  const hasImage = message.contentType === 'image';
+  const senderDetails = me
+    ? { type: 'me' as const, firstName: 'You', avatarUrl: '' }
+    : {
+        type: 'other' as const,
+        firstName: firstNameOf(sender?.name ?? sender?.full_name ?? senderId),
+        avatarUrl: sender?.avatarUrl ?? '',
+      };
 
-  return {
-    hasImage,
-    me,
-    senderDetails,
-  };
+  const hasImage = (message as any).contentType === 'image';
+
+  return { hasImage, me, senderDetails };
 }

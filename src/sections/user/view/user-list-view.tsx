@@ -42,19 +42,19 @@ import {
 
 import axiosInstance from 'src/utils/axios';
 // types
-import { IUserItem, IUserTableFilters, IUserTableFilterValue } from 'src/types/user';
 //
 import UserTableRow from '../user-table-row';
 import UserTableToolbar from '../user-table-toolbar';
-import UserTableFiltersResult from '../user-table-filters-result';
-import UserCreateDialog from '../UserCreateDialog';
-import UserEditDialog from '../UserEditDialog';
-
+import UserUpsertDialog from '../UserEditCreateDialog';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [ 'ACTIVE', 'BANNED']; // API đang trả ACTIVE
-const ROLE_OPTIONS = [ 'ACCOUNTANT', 'MANAGER', 'STAFF']; // lấy theo role code
+const STATUS_OPTIONS = ['ACTIVE', 'BANNED']; // API đang trả ACTIVE
+const ROLE_OPTIONS = [
+  { value: 'ACCOUNTANT', label: 'Kế toán' },
+  { value: 'MANAGER', label: 'Quản lý' },
+  { value: 'STAFF', label: 'Nhân viên' },
+]; // lấy theo role code
 
 const TABLE_HEAD = [
   { id: 'full_name', label: 'Họ và tên', align: 'left' },
@@ -69,8 +69,8 @@ const TABLE_HEAD = [
 
 type Filters = {
   name: string;
-  role: string[];   // multiple
-  status: string;   // all | ACTIVE | BANNED
+  role: string[]; // multiple
+  status: string; // all | ACTIVE | BANNED
 };
 // ----------------------------------------------------------------------
 
@@ -129,7 +129,7 @@ export default function UserListPage() {
   // filters theo toolbar
   const [filters, setFilters] = useState<Filters>({
     name: '',
-    role: [],       // rỗng = all
+    role: [], // rỗng = all
     status: 'all',
   });
 
@@ -296,7 +296,7 @@ export default function UserListPage() {
             sx={{ px: 2, bgcolor: 'background.neutral' }}
           >
             {STATUS_OPTIONS.map((tab) => (
-              <Tab key={tab} label={tab} value={tab} />
+              <Tab key={tab} label={tab === 'ACTIVE' ? 'Hoạt động' : 'Đóng'} value={tab} />
             ))}
           </Tabs>
 
@@ -306,14 +306,6 @@ export default function UserListPage() {
             onFilters={handleFilters as any}
             roleOptions={ROLE_OPTIONS}
           />
-
-          {/* nếu bạn có component result */}
-          {/* <UserTableFiltersResult
-            filters={filters as any}
-            onResetFilters={handleResetFilter}
-            results={dataFiltered.length}
-            sx={{ p: 2.5, pt: 0 }}
-          /> */}
 
           <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
             <TableSelectedAction
@@ -388,14 +380,20 @@ export default function UserListPage() {
         </Card>
       </>
 
-      <UserCreateDialog open={openCreate} onClose={() => setOpenCreate(false)} onCreated={loadUsers} />
+      <UserUpsertDialog
+        open={openCreate}
+        onClose={() => setOpenCreate(false)}
+        onDone={() => loadUsers()}
+        mode="create"
+      />
 
-      <UserEditDialog
+      <UserUpsertDialog
         open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        onDone={() => loadUsers()}
+        mode="edit"
         userId={editUserId}
         initialRow={editRow}
-        onClose={() => setOpenEdit(false)}
-        onUpdated={loadUsers}
       />
 
       <ConfirmDialog

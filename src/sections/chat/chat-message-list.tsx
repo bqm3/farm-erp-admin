@@ -1,7 +1,7 @@
 // @mui
 import Box from '@mui/material/Box';
 // types
-import { IChatParticipant, IChatMessage } from 'src/types/chat';
+import { IChatParticipant } from 'src/types/chat';
 // components
 import Scrollbar from 'src/components/scrollbar';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
@@ -9,14 +9,13 @@ import Lightbox, { useLightBox } from 'src/components/lightbox';
 import { useMessagesScroll } from './hooks';
 import ChatMessageItem from './chat-message-item';
 
-// ----------------------------------------------------------------------
-
 type Props = {
-  messages: IChatMessage[];
+  messages: any[];
   participants: IChatParticipant[];
+  contactsById?: Record<string, IChatParticipant>; // ✅ thêm
 };
 
-export default function ChatMessageList({ messages = [], participants }: Props) {
+export default function ChatMessageList({ messages = [], participants, contactsById }: Props) {
   const { messagesEndRef } = useMessagesScroll(messages);
 
   const slides = messages
@@ -34,18 +33,14 @@ export default function ChatMessageList({ messages = [], participants }: Props) 
               key={message.id}
               message={message}
               participants={participants}
+              contactsById={contactsById} // ✅ truyền xuống
               onOpenLightbox={() => lightbox.onOpen(message.body)}
             />
           ))}
         </Box>
       </Scrollbar>
 
-      <Lightbox
-        index={lightbox.selected}
-        slides={slides}
-        open={lightbox.open}
-        close={lightbox.onClose}
-      />
+      <Lightbox index={lightbox.selected} slides={slides} open={lightbox.open} close={lightbox.onClose} />
     </>
   );
 }

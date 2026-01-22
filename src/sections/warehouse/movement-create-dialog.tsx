@@ -15,7 +15,7 @@ type Props = {
     item_id: number;
     direction: 'IN' | 'OUT';
     qty: number;
-    unit_cost?: number; // chỉ IN
+    unit_price?: number; // chỉ IN
     note: string;       // bắt buộc
   }) => Promise<void>;
   items: Item[];
@@ -44,7 +44,7 @@ export default function MovementCreateDialog({ open, onClose, onSubmit, items, w
         item_id: item.id,
         direction,
         qty: Number(qty),
-        unit_cost: direction === 'IN' ? Number(unitCost || 0) : undefined,
+        unit_price: direction === 'IN' ? Number(unitCost || 0) : undefined,
         note: note.trim(),
       });
       onClose();

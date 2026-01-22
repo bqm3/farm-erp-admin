@@ -21,6 +21,7 @@ import {
 import Iconify from 'src/components/iconify';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import Label from 'src/components/label';
 
 import {
   listWorkCycles,
@@ -119,7 +120,7 @@ export default function WorkCycleListView() {
   return (
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h5">Danh sách chuồng / Work Cycles</Typography>
+        <Typography variant="h5">Danh sách công việc</Typography>
 
         <Button
           variant="contained"
@@ -173,8 +174,10 @@ export default function WorkCycleListView() {
                     {r.department ? `${r.department.code} - ${r.department.name}` : r.department_id}
                   </TableCell>
                   <TableCell>{r.species ? r.species.name : r.species_id}</TableCell>
-                  <TableCell align="right">{r.current_quantity}</TableCell>
-                  <TableCell>{r.status}</TableCell>
+                  <TableCell align="right">{Number(r.current_quantity)}</TableCell>
+                  <TableCell>
+                    <Label color={`${r.status === 'OPEN' ? 'success' : 'warning'}`}>{r.status === 'OPEN' ? 'Đang hoạt động' : 'Đã đóng'}</Label>
+                  </TableCell>
 
                   <TableCell align="right">
                     <Tooltip title="Chi tiết">

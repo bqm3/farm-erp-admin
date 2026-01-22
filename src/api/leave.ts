@@ -27,6 +27,20 @@ export type LeaveRequest = {
   };
 };
 
+export type LeaveRequestCreatePayload = {
+  employee_id?: number; // admin/accountant tạo hộ
+  leave_type: LeaveType;
+  from_date: string; // ISO or YYYY-MM-DD
+  to_date: string;   // ISO or YYYY-MM-DD
+  total_days?: number; // optional, backend sẽ tự tính nếu thiếu
+  reason?: string;
+};
+
+export async function createLeaveRequest(payload: LeaveRequestCreatePayload) {
+  const { data } = await axiosInstance.post('/api/leave/requests', payload);
+  return data;
+}
+
 export type ListLeaveRequestsParams = {
   q?: string; // tìm theo tên/email/mã... (tuỳ backend)
   status?: LeaveStatus | '';

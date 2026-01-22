@@ -26,7 +26,7 @@ export type WarehouseStock = {
   item_id: number;
   qty: number;
   avg_cost: number;
-  unit_cost: number;
+  unit_price: number;
   total_cost: number;
   item?: { id: number; code?: string | null; name: string; unit?: string | null; price?: number | null };
   createdAt?: string;
@@ -41,6 +41,7 @@ export type WarehouseMovement = {
   direction: 'IN' | 'OUT';
   qty: number;
   price: number;
+  unit_price: number;
   vat_percent: number;
   vat_amount: number;
   amount_before_tax: number;
@@ -53,6 +54,8 @@ export type WarehouseMovement = {
   warehouse?: Warehouse;
   created_at?: string;
   receipt: Receipt;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type MovementCreatePayload = {
@@ -60,7 +63,7 @@ export type MovementCreatePayload = {
   item_id: number;
   direction: 'IN' | 'OUT';
   qty: number;
-  unit_cost?: number; // IN dùng tính avg
+  unit_price?: number; // IN dùng tính avg
   ref_type: string;
   receipt_id: string | number;
 };
@@ -80,7 +83,7 @@ export async function listWarehouses(params?: { q?: string; status?: string; pag
 }
 
 export async function getWarehouse(id: number) {
-  const res = await axiosInstance.get(`${BASE}/api/${id}`);
+  const res = await axiosInstance.get(`${BASE}/${id}`);
   return unwrap(res).data as Warehouse;
 }
 
@@ -90,7 +93,7 @@ export async function createWarehouse(payload: WarehousePayload) {
 }
 
 export async function updateWarehouse(id: number, payload: Partial<WarehousePayload>) {
-  const res = await axiosInstance.put(`${BASE}/api/${id}`, payload);
+  const res = await axiosInstance.put(`${BASE}/${id}`, payload);
   return unwrap(res).data as Warehouse;
 }
 

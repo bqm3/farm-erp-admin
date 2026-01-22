@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 /* eslint-disable consistent-return */
 /* eslint-disable arrow-body-style */
 // src/sections/work-cycle/work-cycle-edit-dialog.tsx
@@ -22,11 +23,7 @@ import type { WorkCycle, WorkCycleCreatePayload, WorkCycleStatus } from 'src/api
 import { listDepartment } from 'src/api/department';
 import { apiListSpecies, type ISpecies } from 'src/api/species';
 
-type DeptItem = {
-  id: number;
-  code: string;
-  name: string;
-};
+type DeptItem = { id: number; code: string; name: string };
 
 type Props = {
   open: boolean;
@@ -48,11 +45,11 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
     name: '',
     location: '',
     status: 'OPEN',
-    created_by: 1,
   });
 
   const [deptOptions, setDeptOptions] = useState<DeptItem[]>([]);
   const [speciesOptions, setSpeciesOptions] = useState<ISpecies[]>([]);
+
   const [deptLoading, setDeptLoading] = useState(false);
   const [speciesLoading, setSpeciesLoading] = useState(false);
 
@@ -69,7 +66,6 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
         name: initial.name || '',
         location: initial.location || '',
         status: initial.status || 'OPEN',
-        created_by: initial.created_by || 1,
       });
     } else {
       setForm({
@@ -80,45 +76,41 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
         name: '',
         location: '',
         status: 'OPEN',
-        created_by: 1,
       });
     }
   }, [open, initial]);
 
-  // ✅ load departments + species ngay khi mở dialog
   useEffect(() => {
     if (!open) return;
 
     let alive = true;
 
-    const loadAll = async () => {
-      setDeptLoading(true);
+    const loadBase = async () => {
       setSpeciesLoading(true);
 
       try {
-        const [deptResp, speciesResp] = await Promise.all([
-          listDepartment({ page: 1, limit: 100 }), // lấy danh sách luôn
-          apiListSpecies({ page: 1, pageSize: 100 }),
+        const [departmentResp, speciesResp] = await Promise.all([
+          listDepartment({ page: 1, limit: 200 }),
+          apiListSpecies({ page: 1, pageSize: 200 }),
         ]);
 
         if (!alive) return;
-
-        setDeptOptions(deptResp.data || []);
+        setDeptOptions(departmentResp.data)
         setSpeciesOptions(speciesResp.data || []);
       } finally {
         if (alive) {
-          setDeptLoading(false);
           setSpeciesLoading(false);
         }
       }
     };
 
-    loadAll();
+    loadBase();
 
     return () => {
       alive = false;
     };
   }, [open]);
+
 
   const canSubmit = useMemo(() => {
     return (
@@ -131,7 +123,7 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
   }, [form]);
 
   const handleChange =
-    (key: keyof WorkCycleCreatePayload) =>
+    (key: keyof (WorkCycleCreatePayload & { farm_id?: number })) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const v = (e.target as any).value;
       setForm((prev) => ({ ...prev, [key]: v as any }));
@@ -139,7 +131,7 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
 
   const handleSubmit = async () => {
     await onSubmit({
-      ...form,
+      ...(form as any),
       code: String(form.code).trim(),
       name: String(form.name).trim(),
       location: String(form.location || '').trim(),
@@ -150,23 +142,19 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{isEdit ? 'Sửa chuồng / Work Cycle' : 'Tạo chuồng / Work Cycle'}</DialogTitle>
+      <DialogTitle>{isEdit ? 'Sửa công việc' : 'Tạo công việc'}</DialogTitle>
 
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField label="Mã (code)" value={form.code} onChange={handleChange('code')} required />
 
-          {/* ✅ Department Select */}
+         
           <TextField
             select
-            label="Department"
+            label="Khu vực"
             value={form.department_id || ''}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, department_id: Number((e.target as any).value) }))
-            }
+            onChange={(e) => setForm((prev) => ({ ...prev, department_id: Number((e.target as any).value) }))}
             required
-            disabled={deptLoading}
-            SelectProps={{ displayEmpty: true }}
             InputProps={{
               endAdornment: deptLoading ? (
                 <InputAdornment position="end">
@@ -175,9 +163,6 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
               ) : null,
             }}
           >
-            <MenuItem value="" disabled>
-              {deptLoading ? 'Đang tải danh sách...' : 'Chọn khu vực / trang trại'}
-            </MenuItem>
 
             {deptOptions.map((d) => (
               <MenuItem key={d.id} value={d.id}>
@@ -186,14 +171,11 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
             ))}
           </TextField>
 
-          {/* ✅ Species Select */}
           <TextField
             select
-            label="Giống loài (Species)"
+            label="Giống loài"
             value={form.species_id || ''}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, species_id: Number((e.target as any).value) }))
-            }
+            onChange={(e) => setForm((prev) => ({ ...prev, species_id: Number((e.target as any).value) }))}
             required
             disabled={speciesLoading}
             SelectProps={{ displayEmpty: true }}

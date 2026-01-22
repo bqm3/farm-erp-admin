@@ -17,6 +17,17 @@ export type MonthUserRow = {
   department: any;
 };
 
+export type AttendanceRow = {
+  id: number;
+  employee_id: number;
+  farm_id: number;
+  date: string; // YYYY-MM-DD
+  check_in_time?: string; // ISO
+  status?: string; // PRESENT/...
+  note?: string;
+  employee: any
+};
+
 export type AttendanceDailyItem = {
   date: string; // YYYY-MM-DD
   attendance: null | {
@@ -78,7 +89,50 @@ export type PayrollSummary = {
   net_amount: number;     // thực nhận (gross - advance_approved - penalty,... tuỳ rule)
 };
 
+export type PayrollLogRow = {
+  id: number;
+  employee_id: number;
+  month: number;
+  year: number;
+  action_type: 'BONUS' | 'DEDUCTION' | 'ALLOWANCE' | 'OT_ADJUST' | 'SALARY_ADJUST' | string;
+  amount: number;
+  before_value: number;
+  after_value: number;
+  delta?: number;
+  reason?: string | null;
+  created_at?: string;
+  created_by?: number;
+  created_by_user?: { id: number; username?: string; full_name?: string } | null;
+};
 
+export async function listAttendances(params: {
+  month: number;
+  year: number;
+  employee_id?: number | null;
+}) {
+  const res = await axiosInstance.get('/api/attendance', { params });
+  return res.data as { ok: boolean; data: AttendanceRow[] };
+}
+
+export async function checkInAttendance(payload?: { employee_id?: number; note?: string }) {
+  const res = await axiosInstance.post('/api/attendance/check-in', payload || {});
+  return res.data as { ok: boolean; data: AttendanceRow };
+}
+
+export async function helpCheckInAttendance(payload: { employee_id: number; date: string; note: string }) {
+  const res = await axiosInstance.post('/api/attendance/help-check-in', payload);
+  return res.data as { ok: boolean; data: AttendanceRow };
+}
+
+
+
+// gợi ý: API lấy danh sách nhân viên mà viewer được xem
+export type UserOption = { id: number; full_name: string; username?: string; code?: string };
+
+export async function listAttendanceUsers() {
+  const res = await axiosInstance.get('/api/users');
+  return res.data as { ok: boolean; data: UserOption[] };
+}
 
 export async function getMonthUsers(month: number, year: number) {
   const res = await axiosInstance.get('/api/attendance/month-users', { params: { month, year } });
@@ -105,9 +159,18 @@ export async function getUserDaily(employeeId: number, month: number, year: numb
  * Ví dụ endpoint: POST /api/attendance/close
  * body: { month, year }
  */
-export async function closeAttendance(month: number, year: number) {
-  const res = await axiosInstance.post('/api/attendance/close', { month, year });
-  return res.data as { ok: boolean; message?: string };
+export async function closeAttendance(params: {
+  month: number;
+  year: number;
+  employeeIds?: number[];
+  closeAll?: boolean;
+}) {
+  const res = await axiosInstance.post('/api/attendance/close', params);
+  return res.data as {
+    ok: boolean;
+    message?: string;
+    data?: { closedCount: number; total: number; errors?: { employeeId: number; message: string }[] };
+  };
 }
 
 export async function getUserMonthDetail(employeeId: number, month: number, year: number) {
@@ -128,6 +191,9 @@ export async function getUserMonthDetail(employeeId: number, month: number, year
       salary_advances: SalaryAdvanceRow[];
 
       payroll: PayrollSummary;
+      payroll_preview: any;
+      payroll_closing: any;
+      payroll_final: any;
 
       closing: null | { id: number; month: number; year: number; closed_at: string; closed_by: number };
       can_edit: boolean;
@@ -165,4 +231,26 @@ export async function closeUserAttendance(employeeId: number, month: number, yea
 export async function reopenUserAttendance(employeeId: number, month: number, year: number) {
   const res = await axiosInstance.post(`/api/attendance/users/${employeeId}/reopen` as any, { month, year });
   return res.data as { ok: boolean; message?: string };
+}
+
+
+export async function getPayrollLogs(employeeId: number, month: number, year: number) {
+  const res = await axiosInstance.get(`/api/attendance/users/${employeeId}/payroll-logs`, {
+    params: { month, year },
+  });
+  return res.data; // {ok, data}
+}
+
+export type PayrollAdjustmentPayload = {
+  month: number;
+  year: number;
+  action_type: 'BONUS' | 'DEDUCTION' | 'ALLOWANCE' | 'OT_ADJUST' | 'SALARY_ADJUST';
+  amount: number; // delta
+  direction: any;
+  reason?: string | null;
+};
+
+export async function addPayrollAdjustment(employeeId: number, payload: PayrollAdjustmentPayload) {
+  const res = await axiosInstance.post(`/api/attendance/users/${employeeId}/payroll-adjustments`, payload);
+  return res.data; // { ok, data, message? }
 }
