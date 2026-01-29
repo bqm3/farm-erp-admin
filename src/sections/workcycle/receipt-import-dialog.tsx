@@ -237,7 +237,7 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
     v === null || v === undefined || String(v).trim() === '' ? '—' : String(v);
 
   return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="md" fullWidth>
       <DialogTitle>Nhập giống #{speciesName}</DialogTitle>
 
       <DialogContent>
@@ -357,7 +357,7 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
               required
             />
             <TextField
-              label="Tổng tiền (trước VAT)"
+              label="Tổng tiền hóa đơn (trước VAT)"
               value={formatNumber(Number(totalBeforeTax))}
               onChange={(e) => {
                 const num = parseMoneyToNumber(e.target.value);

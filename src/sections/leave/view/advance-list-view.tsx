@@ -39,7 +39,10 @@ function statusChip(s: AdvanceStatus) {
 export default function AdvanceListView({ canApprove }: { canApprove?: boolean }) {
   const { enqueueSnackbar } = useSnackbar();
 
+  // tạo cho chính mình
   const [createOpen, setCreateOpen] = useState(false);
+  // ✅ tạo hộ
+  const [createForOtherOpen, setCreateForOtherOpen] = useState(false);
 
   const [rows, setRows] = useState<AdvanceRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -114,10 +117,19 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="h4">Ứng lương</Typography>
 
-          {/* Staff cũng thấy nút tạo; admin/HR vẫn có thể tạo nếu bạn muốn */}
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            Tạo phiếu
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {/* Staff thấy nút tạo (như cũ) */}
+            <Button variant="contained" onClick={() => setCreateOpen(true)}>
+              Tạo phiếu
+            </Button>
+
+            {/* ✅ Admin/HR có thêm nút tạo hộ */}
+            {canApprove && (
+              <Button variant="outlined" onClick={() => setCreateForOtherOpen(true)}>
+                Ứng lương hộ
+              </Button>
+            )}
+          </Stack>
         </Stack>
 
         <Card sx={{ p: 2 }}>
@@ -218,10 +230,19 @@ export default function AdvanceListView({ canApprove }: { canApprove?: boolean }
           </Stack>
         </Card>
 
+        {/* dialog tạo cho chính mình */}
         <AdvanceCreateDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => loadData()}
+        />
+
+        {/* ✅ dialog tạo hộ */}
+        <AdvanceCreateDialog
+          open={createForOtherOpen}
+          onClose={() => setCreateForOtherOpen(false)}
+          onCreated={() => loadData()}
+          mode="FOR_OTHER"
         />
 
         <Dialog

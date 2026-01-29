@@ -71,3 +71,21 @@ export async function getUsersAndManagersByFarm(farmId: number) {
     };
   };
 }
+
+
+export type UpdateMePayload = Partial<Pick<any, "full_name" | "phone" | "email" | "address" | "dob" | "cccd">>;
+
+export async function apiGetMe() {
+  const res = await axiosInstance.get("/api/auth/me");
+  return res.data?.data as any;
+}
+
+export async function apiUpdateMe(payload: UpdateMePayload) {
+  const res = await axiosInstance.put("/api/auth/me", payload);
+  return res.data?.data as any;
+}
+
+export async function apiChangeMyPassword(old_password: string, new_password: string) {
+  const res = await axiosInstance.put("/api/auth/me/password", { old_password, new_password });
+  return res.data;
+}

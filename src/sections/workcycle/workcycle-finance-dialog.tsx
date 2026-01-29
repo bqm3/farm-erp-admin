@@ -300,7 +300,7 @@ const handleClose = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Loại thay đổi</TableCell>
-                    <TableCell align="right">Số log</TableCell>
+                    <TableCell align="right">Số lượng đơn</TableCell>
                     <TableCell align="right">Tổng thay đổi</TableCell>
                   </TableRow>
                 </TableHead>

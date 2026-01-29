@@ -35,7 +35,6 @@ export default function ChatMessageItem({ message, participants, contactsById, o
   });
 
   const { firstName, avatarUrl } = senderDetails;
-  console.log('senderDetails', senderDetails , message)
 
     const { body, createdAt, text } = message as any;
 

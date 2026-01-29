@@ -334,23 +334,34 @@ export default function ChatView() {
 
   const handleClickUser = useCallback(
   async (u: IChatParticipant) => {
+    console.log("[click user]", u); // ✅ phải thấy log này khi click
     try {
       const otherId = String((u as any).id);
 
       const existing = getThreadIdByUserId(otherId);
+      console.log("[existing thread?]", existing);
+
       if (existing) {
-        router.push(`${paths.dashboard.chat}?id=${encodeURIComponent(existing)}`);
+        const url = `${paths.dashboard.chat}?id=${encodeURIComponent(existing)}`;
+        console.log("[navigate]", url);
+        router.push(url);
         return;
       }
 
       const r = await apiStartDm(Number(otherId));
-      router.push(`${paths.dashboard.chat}?id=${encodeURIComponent(r.threadId)}`);
+      console.log("[start dm result]", r);
+
+      const url = `${paths.dashboard.chat}?id=${encodeURIComponent(r.threadId)}`;
+      console.log("[navigate]", url);
+      router.push(url);
     } catch (e) {
+      console.error(e);
       setConversationError(e);
     }
   },
   [router, getThreadIdByUserId]
 );
+
 
 
   const participants: IChatParticipant[] = conversation ? conversation.participants : [];

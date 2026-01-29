@@ -40,11 +40,12 @@ const STATUS_OPTIONS = [
   { value: 'DA_DUYET', label: 'Đã duyệt' },
   { value: 'TU_CHOI', label: 'Từ chối' },
   { value: 'DA_CHOT', label: 'Đã chốt' },
-  { value: 'NHAP', label: 'Nháp' },
+  { value: 'HUY', label: 'Hủy' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  NHAP: 'Nháp',
+  NHAP: 'Nhập',
+  HUY: 'Hủy',
   CHO_DUYET: 'Chờ duyệt',
   DA_DUYET: 'Đã duyệt',
   TU_CHOI: 'Từ chối',
@@ -71,6 +72,7 @@ const SUBTYPE_LABEL: Record<string, string> = {
   XUAT: 'Xuất',
   HARVEST: 'Xuất chuồng / Thu hoạch',
   SOLD: 'Bán',
+  NHAP_LAI: 'Nhập lại',
   DEATH: 'Chết / Hao hụt',
   DECREASE: 'Giảm',
   ADJUST_OUT: 'Điều chỉnh giảm',
@@ -198,11 +200,11 @@ function receiptVatAmount(r: any) {
 
 function statusChip(s: string) {
   const k = String(s || '').toUpperCase();
-  if (k === 'NHAP') return <Chip label="Nháp" size="small" color="default" />;
   if (k === 'CHO_DUYET') return <Chip label="Chờ duyệt" size="small" color="info" />;
   if (k === 'DA_DUYET') return <Chip label="Đã duyệt" size="small" color="success" />;
   if (k === 'TU_CHOI') return <Chip label="Từ chối" size="small" color="warning" />;
   if (k === 'DA_CHOT') return <Chip label="Đã chốt" size="small" />;
+  if (k === 'HUY') return <Chip label="Hủy" size="small" />;
   return <Chip label={STATUS_LABEL[k] || s} size="small" />;
 }
 
@@ -704,7 +706,7 @@ export default function WorkCycleReceiptListView({
                     <TableRow>
                       <TableCell>#</TableCell>
                       <TableCell>Loại dòng</TableCell>
-                      <TableCell>Item</TableCell>
+                      <TableCell>Hàng hóa</TableCell>
                       <TableCell>Mô tả</TableCell>
                       <TableCell align="right">SL</TableCell>
                       <TableCell align="right">Đơn giá</TableCell>

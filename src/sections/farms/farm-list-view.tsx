@@ -67,6 +67,21 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
+  const [activeFarm, setActiveFarm] = useState<{ id: number; name: string; code?: string } | null>(
+    null
+  );
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('activeFarm');
+    if (raw) {
+      try {
+        setActiveFarm(JSON.parse(raw));
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -133,9 +148,16 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
 
   async function handleEnterFarm(r: FarmRow) {
     try {
-      const res = await selectFarm(r.id);
+      await selectFarm(r.id);
+
+      // ✅ Lưu farm đang active để UI hiển thị
+      const next = { id: r.id, name: r.name, code: r.code };
+      sessionStorage.setItem('activeFarm', JSON.stringify(next));
+      setActiveFarm(next);
+
+      // (tuỳ bạn) gọi me để refresh session nếu cần
       const storedToken = sessionStorage.getItem('accessToken');
-      const res2 = await axiosInstance.get(endpoints.auth.me, {
+      await axiosInstance.get(endpoints.auth.me, {
         headers: { Authorization: `Bearer ${storedToken}` },
       });
 
@@ -149,7 +171,21 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
     <>
       <Stack spacing={2}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h5">Quản lý dự án</Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="h5">Quản lý dự án</Typography>
+
+            {activeFarm && (
+              <Chip
+                size="small"
+                color="primary"
+                variant="outlined"
+                label={`Đang ở: ${activeFarm.name}${
+                  activeFarm.code ? ` (${activeFarm.code})` : ''
+                }`}
+              />
+            )}
+          </Stack>
+
           {canEdit && (
             <Button variant="contained" onClick={openCreate}>
               Tạo dự án

@@ -276,7 +276,7 @@ export default function ReceiptTHU_HOACHSoldDialog({
   };
 
   return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         {subtype === 'THU_HOACH' ? 'Tạo phiếu xuất chuồng / thu hoạch' : 'Tạo phiếu bán'} • #
         {speciesName}
@@ -414,7 +414,7 @@ export default function ReceiptTHU_HOACHSoldDialog({
               required
             />
             <TextField
-              label="Tổng tiền (trước VAT)"
+              label="Tổng tiền hóa đơn (trước VAT)"
               value={formatNumber(Number(totalBeforeTax))}
               onChange={(e) => {
                 const num = parseMoneyToNumber(e.target.value);

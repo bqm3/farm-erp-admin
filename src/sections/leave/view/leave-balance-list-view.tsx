@@ -102,7 +102,7 @@ export default function LeaveBalanceListView({ canEdit = false }: Props) {
   return (
     <Container maxWidth="xl">
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h4">Phép năm (Leave Balance)</Typography>
+        <Typography variant="h4">Phép năm</Typography>
         <Stack direction="row" spacing={2}>
           <Button
             variant="contained"
@@ -203,8 +203,8 @@ export default function LeaveBalanceListView({ canEdit = false }: Props) {
                     <TableCell>{empText}</TableCell>
                     <TableCell>{r.year}</TableCell>
                     <TableCell align="right">{r.total_days}</TableCell>
-                    <TableCell align="right">{r.used_days}</TableCell>
-                    <TableCell align="right">{r.remaining_days}</TableCell>
+                    <TableCell align="right">{Number(r.used_days)}</TableCell>
+                    <TableCell align="right">{Number(r.remaining_days)}</TableCell>
 
                     <TableCell align="right">
                       <Tooltip title="Sửa tổng ngày">

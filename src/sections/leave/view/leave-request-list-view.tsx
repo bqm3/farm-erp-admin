@@ -62,7 +62,7 @@ function statusChip(status?: string) {
 function typeLabel(t?: string) {
   if (t === 'PAID') return 'Nghỉ phép (có lương)';
   if (t === 'UNPAID') return 'Nghỉ không lương';
-  if (t === 'SICK') return 'Nghỉ ốm';
+  // if (t === 'SICK') return 'Nghỉ ốm';
   return t || '-';
 }
 
@@ -81,7 +81,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
 
   // filters
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState<LeaveStatus | ''>('PENDING');
+  const [status, setStatus] = useState<LeaveStatus | ''>('');
   const [leaveType, setLeaveType] = useState<LeaveType | ''>('');
   const [from, setFrom] = useState<string>(''); // YYYY-MM-DD
   const [to, setTo] = useState<string>(''); // YYYY-MM-DD
@@ -214,7 +214,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
             <MenuItem value="">Tất cả</MenuItem>
             <MenuItem value="PAID">Nghỉ phép (có lương)</MenuItem>
             <MenuItem value="UNPAID">Nghỉ không lương</MenuItem>
-            <MenuItem value="SICK">Nghỉ ốm</MenuItem>
+            {/* <MenuItem value="SICK">Nghỉ ốm</MenuItem> */}
           </TextField>
 
           <TextField

@@ -38,7 +38,6 @@ import { MotionLazy } from 'src/components/animate/motion-lazy';
 import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
 import { SettingsProvider, SettingsDrawer } from 'src/components/settings';
 // sections
-import { CheckoutProvider } from 'src/sections/checkout/context';
 // auth
 import { AuthProvider, AuthConsumer } from 'src/auth/context/jwt';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/auth0';
@@ -48,17 +47,6 @@ import { AuthProvider, AuthConsumer } from 'src/auth/context/jwt';
 // ----------------------------------------------------------------------
 
 export default function App() {
-  const charAt = `
-
-  ░░░    ░░░
-  ▒▒▒▒  ▒▒▒▒
-  ▒▒ ▒▒▒▒ ▒▒
-  ▓▓  ▓▓  ▓▓
-  ██      ██
-
-  `;
-
-  console.info(`%c${charAt}`, 'color: #5BE49B');
 
   useScrollToTop();
 
@@ -78,13 +66,11 @@ export default function App() {
           <ThemeProvider>
             <MotionLazy>
               <SnackbarProvider>
-                <CheckoutProvider>
                   <SettingsDrawer />
                   <ProgressBar />
                   <AuthConsumer>
                     <Router />
                   </AuthConsumer>
-                </CheckoutProvider>
               </SnackbarProvider>
             </MotionLazy>
           </ThemeProvider>

@@ -68,6 +68,7 @@ function logTypeLabel(t?: string) {
 
 function statusChip(status: string) {
   if (status === 'PRESENT') return <Chip label="Có mặt" color="success" size="small" />;
+  if (status === 'HELP') return <Chip label="Chấm hộ" color="info" size="small" />;
   if (status === 'LATE') return <Chip label="Đi trễ" color="warning" size="small" />;
   if (status === 'ABSENT') return <Chip label="Vắng" color="error" size="small" />;
   if (status === 'APPROVED') return <Chip label="Đã duyệt" color="success" size="small" />;
@@ -94,7 +95,7 @@ function money(v: any) {
 function typeLabel(t?: string) {
   if (t === 'PAID') return 'Nghỉ phép (có lương)';
   if (t === 'UNPAID') return 'Nghỉ không lương';
-  if (t === 'SICK') return 'Nghỉ ốm';
+  // if (t === 'SICK') return 'Nghỉ ốm';
   return t || '-';
 }
 
@@ -544,7 +545,7 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
                           label="Nghỉ có lương"
                           value={`${n(previewPayroll.paid_leave_days)} ngày`}
                         />
-                        <Row label="Nghỉ ốm" value={`${n(previewPayroll.sick_leave_days)} ngày`} />
+                        {/* <Row label="Nghỉ ốm" value={`${n(previewPayroll.sick_leave_days)} ngày`} /> */}
                         <Row
                           label="Nghỉ không lương"
                           value={`${n(previewPayroll.unpaid_leave_days)} ngày`}

@@ -127,16 +127,16 @@ export function useNavData() {
             title: t('user'),
             path: paths.dashboard.user.root,
             icon: ICONS.user,
-            children: [{ title: t('list'), path: paths.dashboard.user.list }],
+            children: [{ title: t('list'), path: paths.dashboard.user.list }, { title: t('profile'), path: paths.dashboard.user.profile }, ],
           },
           {
             // ITEM CATEGORY
-            title: t('Hạng mục'),
+            title: t('Hàng hóa'),
             path: paths.dashboard.category.root,
             icon: ICONS.job,
             children: [
-              { title: t('Mục'), path: paths.dashboard.category.itemList },
-              { title: t('Loại'), path: paths.dashboard.category.cateList },
+              { title: t('thức ăn'), path: paths.dashboard.category.itemList },
+              { title: t('vật tư tiêu hao'), path: paths.dashboard.category.cateList },
               //  {
               //   title: t('details'),
               //   path: `${paths.dashboard.department.details}`,
@@ -362,6 +362,12 @@ export function useNavData() {
         subheader: t('management'),
         items: [
           {
+            title: t('user'),
+            path: paths.dashboard.user.root,
+            icon: ICONS.user,
+            children: [ { title: t('profile'), path: paths.dashboard.user.profile }, ],
+          },
+          {
             // DEPARTMENT
             title: t('Khu vực'),
             path: paths.dashboard.department.root,
@@ -430,7 +436,12 @@ export function useNavData() {
       {
         subheader: t('management'),
         items: [
-         
+         {
+            title: t('user'),
+            path: paths.dashboard.user.root,
+            icon: ICONS.user,
+            children: [ { title: t('profile'), path: paths.dashboard.user.profile }, ],
+          },
           {
             // DEPARTMENT
             title: t('Khu vực'),
@@ -514,7 +525,12 @@ export function useNavData() {
       {
         subheader: t('management'),
         items: [
-          // USER
+          {
+            title: t('user'),
+            path: paths.dashboard.user.root,
+            icon: ICONS.user,
+            children: [ { title: t('profile'), path: paths.dashboard.user.profile }, ],
+          },
           {
             title: t('Khách hàng'),
             path: paths.dashboard.partner.root,
@@ -535,12 +551,12 @@ export function useNavData() {
           },
           {
             // ITEM CATEGORY
-            title: t('Hạng mục'),
+            title: t('Hàng hóa'),
             path: paths.dashboard.category.root,
             icon: ICONS.job,
             children: [
-              { title: t('Mục'), path: paths.dashboard.category.itemList },
-              { title: t('Loại'), path: paths.dashboard.category.cateList },
+              { title: t('thức ăn'), path: paths.dashboard.category.itemList },
+              { title: t('vật tư tiêu hao'), path: paths.dashboard.category.cateList },
             ],
           },
           {

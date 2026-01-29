@@ -36,12 +36,15 @@ import {
   approveReceipt,
   createReceiptChangeRequest,
   type ReceiptCreatePayload,
+  rejectReceipt,
+  cancelReceipt,
 } from 'src/api/receipts';
 
 import { fDate } from 'src/utils/format-time';
 import ReceiptCreateDialog from '../receipt-create-dialog';
 import ReceiptDetailDialog from '../receipt-detail-dialog';
 import ReceiptChangeRequestDialog from '../receipt-change-request-dialog';
+import ReceiptCancelDialog from '../receipt-cancel-dialog';
 
 // ===== Helpers =====
 function toInt(v: any, fallback = 0) {
@@ -72,6 +75,45 @@ function joinParts(parts: Array<string | null | undefined>, sep = ' • ') {
   return parts.filter((x) => typeof x === 'string' && x.trim().length > 0).join(sep);
 }
 
+const renderStatus = (s: string) => {
+  if (s === 'CHO_DUYET') return <Chip size="small" label="Chờ duyệt" color="warning" />;
+  if (s === 'DA_DUYET') return <Chip size="small" label="Đã duyệt" color="success" />;
+  if (s === 'TU_CHOI') return <Chip size="small" label="Từ chối" color="error" />;
+  if (s === 'DANG_KY') return <Chip size="small" label="Đăng ký" color="info" />;
+  if (s === 'HUY') return <Chip size="small" label="Huỷ" color="default" />;
+  return <Chip size="small" label={s || '-'} color="default" />;
+};
+
+const getTypeLabel = (t?: string | null) => {
+  if (t === 'THU') return <Chip size="small" label="THU" color="success" />;
+  if (t === 'CHI') return <Chip size="small" label="CHI" color="warning" />;
+  return <Chip size="small" label={t || '-'} color="default" />;
+};
+
+const getSubtypeLabel = (t?: string | null) => {
+  const map: Record<string, { label: string; color: any }> = {
+    THU_HOACH: { label: 'Thu hoạch', color: 'info' },
+    SOLD: { label: 'Bán', color: 'info' },
+    XUAT: { label: 'Xuất', color: 'secondary' },
+    NHAP: { label: 'Nhập', color: 'secondary' },
+    NHAP_LAI: { label: 'Nhập lại', color: 'success' },
+    THEM: { label: 'Thêm', color: 'secondary' },
+    TANG: { label: 'Tăng', color: 'secondary' },
+    GIAM: { label: 'Giảm', color: 'secondary' },
+    CHET: { label: 'Chết', color: 'secondary' },
+    BAN: { label: 'Bán', color: 'info' },
+  };
+  const k = String(t || '');
+  if (map[k]) return <Chip size="small" label={map[k].label} color={map[k].color} />;
+  return <Chip size="small" label={t || '-'} color="default" />;
+};
+
+const getSourceLabel = (s?: string | null) => {
+  if (s === 'KHO') return <Chip size="small" label="Kho" color="secondary" />;
+  if (s === 'BEN_NGOAI') return <Chip size="small" label="Bên ngoài" color="primary" />;
+  return <Chip size="small" label={s || '-'} color="default" />;
+};
+
 type Props = {
   roles?: string[];
 };
@@ -99,8 +141,6 @@ export default function ReceiptListView({ roles = [] }: Props) {
 
   // row expand
   const [openRowIds, setOpenRowIds] = useState<Record<number, boolean>>({});
-
-  // dialogs
   const [openCreate, setOpenCreate] = useState(false);
 
   const [openDetail, setOpenDetail] = useState(false);
@@ -108,6 +148,11 @@ export default function ReceiptListView({ roles = [] }: Props) {
 
   const [openCR, setOpenCR] = useState(false);
   const [crReceiptId, setCrReceiptId] = useState<number | null>(null);
+
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelId, setCancelId] = useState<number | null>(null);
+  const [cancelCode, setCancelCode] = useState<string>('');
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
@@ -147,6 +192,34 @@ export default function ReceiptListView({ roles = [] }: Props) {
     setOpenDetail(true);
   };
 
+  const openCancel = (id: number, code?: string) => {
+    setCancelId(id);
+    setCancelCode(code || '');
+    setCancelOpen(true);
+  };
+
+  const closeCancel = () => {
+    if (cancelLoading) return;
+    setCancelOpen(false);
+    setCancelId(null);
+    setCancelCode('');
+  };
+
+  const submitCancel = async (reason: string) => {
+    if (!cancelId) return;
+    try {
+      setCancelLoading(true);
+      await cancelReceipt(cancelId, { reason }); // reason bắt buộc
+      enqueueSnackbar('Huỷ phiếu thành công', { variant: 'success' });
+      closeCancel();
+      await fetchData();
+    } catch (err: any) {
+      enqueueSnackbar(err?.message || 'Huỷ phiếu thất bại', { variant: 'error' });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   const handleSubmitCreate = async (payload: ReceiptCreatePayload) => {
     try {
       await createReceipt(payload);
@@ -163,6 +236,24 @@ export default function ReceiptListView({ roles = [] }: Props) {
     try {
       await approveReceipt(id);
       enqueueSnackbar('Duyệt phiếu thành công', { variant: 'success' });
+      await fetchData();
+    } catch (err: any) {
+      enqueueSnackbar(err?.message || 'Có lỗi xảy ra', { variant: 'error' });
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    const reason = window.prompt('Nhập lý do từ chối:');
+    if (!reason || !reason.trim()) {
+      enqueueSnackbar('Cần nhập lý do từ chối', { variant: 'warning' });
+      return;
+    }
+
+    if (!window.confirm('Xác nhận từ chối phiếu này?')) return;
+
+    try {
+      await rejectReceipt(id, { reason: reason.trim() });
+      enqueueSnackbar('Từ chối phiếu thành công', { variant: 'success' });
       await fetchData();
     } catch (err: any) {
       enqueueSnackbar(err?.message || 'Có lỗi xảy ra', { variant: 'error' });
@@ -190,41 +281,17 @@ export default function ReceiptListView({ roles = [] }: Props) {
     }
   };
 
-  const renderStatus = (s: string) => {
-    if (s === 'CHO_DUYET') return <Chip size="small" label="Chờ duyệt" color="warning" />;
-    if (s === 'DA_DUYET') return <Chip size="small" label="Đã duyệt" color="success" />;
-    if (s === 'TU_CHOI') return <Chip size="small" label="Từ chối" color="error" />;
-    if (s === 'DANG_KY') return <Chip size="small" label="Đăng ký" color="info" />;
-    return <Chip size="small" label={s || '-'} color="default" />;
-  };
+  const handleCancel = async (id: number) => {
+    const reason = window.prompt('Lý do huỷ (tuỳ chọn):') || '';
+    if (!window.confirm('Huỷ phiếu này và hoàn tác dữ liệu?')) return;
 
-  const getTypeLabel = (t?: string | null) => {
-    if (t === 'THU') return <Chip size="small" label="THU" color="success" />;
-    if (t === 'CHI') return <Chip size="small" label="CHI" color="warning" />;
-    return <Chip size="small" label={t || '-'} color="default" />;
-  };
-
-  const getSubtypeLabel = (t?: string | null) => {
-    const map: Record<string, { label: string; color: any }> = {
-      THU_HOACH: { label: 'Thu hoạch', color: 'info' },
-      SOLD: { label: 'Bán', color: 'info' },
-      XUAT: { label: 'Xuất', color: 'secondary' },
-      NHAP: { label: 'Nhập', color: 'secondary' },
-      THEM: { label: 'Thêm', color: 'secondary' },
-      TANG: { label: 'Tăng', color: 'secondary' },
-      GIAM: { label: 'Giảm', color: 'secondary' },
-      CHET: { label: 'Chết', color: 'secondary' },
-      BAN: { label: 'Bán', color: 'info' },
-    };
-    const k = String(t || '');
-    if (map[k]) return <Chip size="small" label={map[k].label} color={map[k].color} />;
-    return <Chip size="small" label={t || '-'} color="default" />;
-  };
-
-  const getSourceLabel = (s?: string | null) => {
-    if (s === 'KHO') return <Chip size="small" label="Kho" color="secondary" />;
-    if (s === 'BEN_NGOAI') return <Chip size="small" label="Bên ngoài" color="primary" />;
-    return <Chip size="small" label={s || '-'} color="default" />;
+    try {
+      await cancelReceipt(id, { reason: reason.trim() || undefined });
+      enqueueSnackbar('Huỷ phiếu thành công', { variant: 'success' });
+      await fetchData();
+    } catch (err: any) {
+      enqueueSnackbar(err?.message || 'Huỷ phiếu thất bại', { variant: 'error' });
+    }
   };
 
   const toggleRow = (id: number) => {
@@ -323,13 +390,13 @@ export default function ReceiptListView({ roles = [] }: Props) {
                   <MenuItem value="TU_CHOI">Từ chối</MenuItem>
                 </TextField>
 
-                <TextField
+                {/* <TextField
                   label="Work cycle ID"
                   value={workCycleId}
                   onChange={(e) => setWorkCycleId(e.target.value)}
                   sx={{ width: { xs: '100%', md: 170 } }}
                   placeholder="vd: 1"
-                />
+                /> */}
 
                 <TextField
                   type="date"
@@ -385,7 +452,7 @@ export default function ReceiptListView({ roles = [] }: Props) {
                 <TableRow>
                   <TableCell sx={{ width: 20 }} />
                   <TableCell sx={{ width: 100 }}>Ngày</TableCell>
-                  <TableCell sx={{ width: 260 }}>Mã phiếu</TableCell>
+                  <TableCell sx={{ width: 240 }}>Mã phiếu</TableCell>
                   <TableCell sx={{ width: 80 }}>Loại</TableCell>
                   <TableCell sx={{ width: 120 }}>Hành động</TableCell>
                   <TableCell sx={{ width: 300 }}>Liên quan</TableCell>
@@ -394,7 +461,7 @@ export default function ReceiptListView({ roles = [] }: Props) {
                   </TableCell>
                   <TableCell sx={{ width: 170 }}>Người tạo</TableCell>
                   <TableCell sx={{ width: 130 }}>Trạng thái</TableCell>
-                  <TableCell sx={{ width: 100 }} align="right">
+                  <TableCell sx={{ width: 140 }} align="right">
                     Thao tác
                   </TableCell>
                 </TableRow>
@@ -533,10 +600,29 @@ export default function ReceiptListView({ roles = [] }: Props) {
                               </IconButton>
                             </Tooltip>
 
-                            {isAdmin && r.status !== 'DA_DUYET' && (
-                              <Tooltip title="Duyệt (áp vào kho)">
-                                <IconButton color="success" onClick={() => handleApprove(r.id)}>
-                                  <Iconify icon="eva:checkmark-circle-2-outline" />
+                            {isAdmin && r.status === 'CHO_DUYET' && (
+                              <>
+                                <Tooltip title="Duyệt (áp vào kho)">
+                                  <IconButton color="success" onClick={() => handleApprove(r.id)}>
+                                    <Iconify icon="eva:checkmark-circle-2-outline" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Từ chối">
+                                  <IconButton
+                                    color="error"
+                                    onClick={() => handleReject(r.id)}
+                                    disabled={r.status === 'TU_CHOI'}
+                                  >
+                                    <Iconify icon="eva:close-circle-outline" />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
+
+                            {isAdmin && r.status === 'DA_DUYET' && r?.type === 'CHI' && r?.subtype === 'THEM' &&  (
+                              <Tooltip title="Huỷ phiếu (hoàn tác)">
+                                <IconButton color="warning" onClick={() => openCancel(r.id, r.code)}>
+                                  <Iconify icon="eva:undo-outline" />
                                 </IconButton>
                               </Tooltip>
                             )}
@@ -630,6 +716,8 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                   <TableHead>
                                     <TableRow>
                                       <TableCell sx={{ width: 60 }}>#</TableCell>
+                                      
+                                      <TableCell sx={{ width: 180 }}>Vật tư</TableCell>
                                       <TableCell>Mô tả</TableCell>
                                       <TableCell sx={{ width: 110 }} align="right">
                                         SL
@@ -649,7 +737,6 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                       <TableCell sx={{ width: 140 }} align="right">
                                         Tổng
                                       </TableCell>
-                                      <TableCell sx={{ width: 200 }}>Vật tư</TableCell>
                                     </TableRow>
                                   </TableHead>
 
@@ -665,6 +752,20 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                       return (
                                         <TableRow key={ln.id} hover>
                                           <TableCell>{ln?.line_no ?? '-'}</TableCell>
+                                           <TableCell>
+                                            {hasText(itemText) ? (
+                                              <Typography variant="body2" noWrap title={itemText}>
+                                                {itemText}
+                                              </Typography>
+                                            ) : (
+                                              <Typography
+                                                variant="body2"
+                                                sx={{ color: 'text.secondary' }}
+                                              >
+                                                -
+                                              </Typography>
+                                            )}
+                                          </TableCell>
                                           <TableCell>
                                             <Stack spacing={0.25}>
                                               {hasText(ln?.description) ? (
@@ -720,20 +821,7 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                             </Typography>
                                           </TableCell>
 
-                                          <TableCell>
-                                            {hasText(itemText) ? (
-                                              <Typography variant="body2" noWrap title={itemText}>
-                                                {itemText}
-                                              </Typography>
-                                            ) : (
-                                              <Typography
-                                                variant="body2"
-                                                sx={{ color: 'text.secondary' }}
-                                              >
-                                                -
-                                              </Typography>
-                                            )}
-                                          </TableCell>
+                                         
                                         </TableRow>
                                       );
                                     })}
@@ -814,6 +902,14 @@ export default function ReceiptListView({ roles = [] }: Props) {
         open={openCR}
         onClose={() => setOpenCR(false)}
         onSubmit={handleSubmitCR}
+      />
+
+      <ReceiptCancelDialog
+        open={cancelOpen}
+        receiptCode={cancelCode}
+        loading={cancelLoading}
+        onClose={closeCancel}
+        onSubmit={submitCancel}
       />
     </Container>
   );

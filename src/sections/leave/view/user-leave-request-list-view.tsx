@@ -67,7 +67,7 @@ function statusChip(status?: string) {
 function typeLabel(t?: string) {
   if (t === 'PAID') return 'Nghỉ phép (có lương)';
   if (t === 'UNPAID') return 'Nghỉ không lương';
-  if (t === 'SICK') return 'Nghỉ ốm';
+  // if (t === 'SICK') return 'Nghỉ ốm';
   return t || '-';
 }
 

@@ -26,7 +26,7 @@ import { signInWithCustomToken } from "firebase/auth";
 import { fbAuth } from "src/firebase/firebaseClient";
 
 import { listenMessages } from "src/firebase/listeners";
-import { fetchFirebaseToken, apiSendDm, apiStartDm } from "src/api/firebase"; // <-- đã sửa theo axiosInstance
+import { fetchFirebaseToken, apiSendDm, apiStartDm } from "src/api/firebase";
 import axiosInstance from "src/utils/axios";
 
 // -------------------- types --------------------

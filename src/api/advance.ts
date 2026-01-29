@@ -26,6 +26,7 @@ export async function listAdvances(params: {
 
 export async function createAdvance(payload: {
   request_date: string; // ISO or yyyy-MM-dd
+  employee_id: string;
   amount: number;
   reason?: string;
 }) {

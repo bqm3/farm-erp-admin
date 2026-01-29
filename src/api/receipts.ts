@@ -220,6 +220,10 @@ export async function rejectReceipt(id: number, payload : {
   return res.data;
 }
 
+export async function cancelReceipt(id: number, payload?: { reason?: string }) {
+  return axiosInstance.post(`/api/receipts/change-requests/${id}/cancel`, payload ?? {});
+}
+
 export async function createReceiptChangeRequest(
   receiptId: number,
   payload: { request_type: ChangeRequestType; reason: string; proposed_payload?: any }

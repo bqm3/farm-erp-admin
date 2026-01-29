@@ -271,7 +271,7 @@ export default function LeaveCreateDialog({
             >
               <MenuItem value="PAID">Nghỉ phép (có lương)</MenuItem>
               <MenuItem value="UNPAID">Nghỉ không lương</MenuItem>
-              <MenuItem value="SICK">Nghỉ ốm</MenuItem>
+              {/* <MenuItem value="SICK">Nghỉ ốm</MenuItem> */}
             </TextField>
 
             <TextField
