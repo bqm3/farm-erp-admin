@@ -75,6 +75,46 @@ const unwrap = (res: any) => {
 
 const BASE = '/api/warehouses';
 
+export type ItemLedgerParams = {
+  warehouse_id: number;
+  item_id: number;
+  from?: string; // yyyy-mm-dd
+  to?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listItemLedger(params: ItemLedgerParams) {
+  const res = await axiosInstance.get(`${BASE}/item-ledger`, { params });
+  return res.data as {
+    rows: WarehouseMovement[];
+    count: number;
+    page: number;
+    pageSize: number;
+  };
+}
+
+export async function exportItemLedgerExcel(params: ItemLedgerParams) {
+  const res = await axiosInstance.get(`${BASE}/item-ledger/export`, {
+    params,
+    responseType: 'blob',
+  });
+
+  // lấy filename nếu server set Content-Disposition
+  const cd = res.headers?.['content-disposition'] || '';
+  const match = /filename="?([^"]+)"?/i.exec(cd);
+  const filename = match?.[1] || 'item-ledger.xlsx';
+
+  const blobUrl = window.URL.createObjectURL(res.data);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
 export async function listWarehouses(params?: { q?: string; status?: string; page?: number; pageSize?: number }) {
   const res = await axiosInstance.get(BASE, { params });
   const data = unwrap(res);

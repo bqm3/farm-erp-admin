@@ -40,7 +40,7 @@ export default function PartnerUpsertDialog({ open, onClose, onSubmit, initial }
     if (!open) return;
 
     setPartnerType((initial?.partner_type as PartnerType) || 'CUSTOMER');
-    setShopName(initial?.shop_name || '');
+    setShopName(initial?.name || '');
     setPhone(initial?.phone || '');
     setAddress(initial?.address || '');
     setSupplierName(initial?.supplier_name || '');
@@ -57,7 +57,7 @@ export default function PartnerUpsertDialog({ open, onClose, onSubmit, initial }
 
     const payload: PartnerCreatePayload = {
       partner_type: partnerType,
-      shop_name: shopName.trim(),
+      name: shopName.trim(),
       phone: phone || null,
       address: address || null,
       supplier_name: showSupplierFields ? (supplierName || null) : null,

@@ -25,7 +25,9 @@ export type AttendanceRow = {
   check_in_time?: string; // ISO
   status?: string; // PRESENT/...
   note?: string;
-  employee: any
+  employee: any,
+  helper?: { id: number; full_name?: string; username?: string } | null;
+
 };
 
 export type AttendanceDailyItem = {
@@ -108,11 +110,24 @@ export type PayrollLogRow = {
 export async function listAttendances(params: {
   month: number;
   year: number;
-  employee_id?: number | null;
+  employee_id?: number;
+  page?: number;
+  page_size?: number;
 }) {
   const res = await axiosInstance.get('/api/attendance', { params });
-  return res.data as { ok: boolean; data: AttendanceRow[] };
+
+  return res.data as {
+    ok: boolean;
+    data: {
+      rows: AttendanceRow[];
+      total: number;
+      page: number;
+      page_size: number;
+      total_pages: number;
+    };
+  };
 }
+
 
 export async function checkInAttendance(payload?: { employee_id?: number; note?: string }) {
   const res = await axiosInstance.post('/api/attendance/check-in', payload || {});
@@ -124,7 +139,19 @@ export async function helpCheckInAttendance(payload: { employee_id: number; date
   return res.data as { ok: boolean; data: AttendanceRow };
 }
 
-
+export async function helpCheckInAttendanceRange(payload: {
+  employee_id: number;
+  from_date: string; // YYYY-MM-DD
+  to_date: string;   // YYYY-MM-DD
+  note: string;
+  strict?: boolean;  // optional
+}) {
+  const res = await axiosInstance.post('/api/attendance/help-check-in-range', payload);
+  return res.data as {
+    ok: boolean;
+    data: { created: number; skipped: number; errors?: Array<{ date: string; message: string }> };
+  };
+}
 
 // gợi ý: API lấy danh sách nhân viên mà viewer được xem
 export type UserOption = { id: number; full_name: string; username?: string; code?: string };
@@ -253,4 +280,9 @@ export type PayrollAdjustmentPayload = {
 export async function addPayrollAdjustment(employeeId: number, payload: PayrollAdjustmentPayload) {
   const res = await axiosInstance.post(`/api/attendance/users/${employeeId}/payroll-adjustments`, payload);
   return res.data; // { ok, data, message? }
+}
+
+export async function cancelHelpCheckIn(payload: { attendance_id: number; reason: string }) {
+  const res = await axiosInstance.post('/api/attendance/help-cancel', payload);
+  return res.data as { ok: boolean; data: AttendanceRow };
 }

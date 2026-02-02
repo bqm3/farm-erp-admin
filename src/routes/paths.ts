@@ -114,6 +114,8 @@ export const paths = {
       list: `${ROOTS.DASHBOARD}/user/list`,
       cards: `${ROOTS.DASHBOARD}/user/cards`,
       profile: `${ROOTS.DASHBOARD}/user/profile`,
+      
+      details: (id: string) => `${ROOTS.DASHBOARD}/user/${id}/payroll-range`,
       account: `${ROOTS.DASHBOARD}/user/account`,
       edit: (id: string) => `${ROOTS.DASHBOARD}/user/${id}/edit`,
       demo: {
@@ -131,6 +133,7 @@ export const paths = {
     partner: {
       root: `${ROOTS.DASHBOARD}/partner`,
       list: `${ROOTS.DASHBOARD}/partner/list`,
+      details: (id: string) => `${ROOTS.DASHBOARD}/partner/${id}`,
     },
     warehouse: {
       root: `${ROOTS.DASHBOARD}/warehouse`,

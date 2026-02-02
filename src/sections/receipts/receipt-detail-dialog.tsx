@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 // src/sections/receipts/receipt-detail-dialog.tsx
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -27,6 +27,7 @@ import {
 import type { Receipt } from 'src/api/receipts';
 import { getReceiptDetail } from 'src/api/receipts';
 import { fDate } from 'src/utils/format-time';
+import { enqueueSnackbar } from 'src/components/snackbar';
 
 type Props = {
   open: boolean;
@@ -36,10 +37,12 @@ type Props = {
   canApprove?: boolean;
   onApprove?: (id: number) => Promise<void>;
 
-  canCreateChangeRequest?: boolean;
-  onCreateChangeRequest?: (id: number) => Promise<void>;
+  // ✅ Hoàn tác = mở dialog huỷ phiếu (ReceiptCancelDialog) ở list view
+  canCancel?: boolean;
+  onCancel?: (id: number, code?: string) => void;
 };
 
+// ===== Utils =====
 function n(v: any, fb = 0) {
   const x = Number(v);
   return Number.isFinite(x) ? x : fb;
@@ -63,6 +66,7 @@ function statusToChip(status?: string | null): { label: string; color: any } {
   if (s === 'DA_DUYET') return { label: 'Đã duyệt', color: 'success' };
   if (s === 'TU_CHOI') return { label: 'Từ chối', color: 'error' };
   if (s === 'DANG_KY') return { label: 'Đăng ký', color: 'info' };
+  if (s === 'HUY') return { label: 'Huỷ', color: 'default' };
   return { label: s || '-', color: 'default' };
 }
 
@@ -79,6 +83,7 @@ function subtypeToText(subtype?: string | null) {
     BAN: 'Bán',
     XUAT: 'Xuất',
     NHAP: 'Nhập',
+    NHAP_LAI: 'Nhập lại',
     THEM: 'Thêm',
     TANG: 'Tăng',
     GIAM: 'Giảm',
@@ -95,7 +100,6 @@ function sourceToText(source?: string | null) {
 }
 
 function renderObjectLine(code?: string | null, name?: string | null) {
-  // chỉ show khi có data thật
   const c = hasText(code) ? String(code) : '';
   const n2 = hasText(name) ? String(name) : '';
   const text = joinParts([c, n2 ? (c ? `- ${n2}` : n2) : ''], ' ');
@@ -103,9 +107,15 @@ function renderObjectLine(code?: string | null, name?: string | null) {
 }
 
 function LineCard({ ln }: { ln: any }) {
-  // KHÔNG HIỂN THỊ item_id
-  const itemCode = ln?.item?.code ? String(ln.item.code) : '-';
-  const itemName = ln?.item?.name ? String(ln.item.name) : (ln?.description ? String(ln.description) : '-');
+  const itemCode =
+    ln?.item?.code
+      ? String(ln.item.code)
+      : (ln?.species?.code ? String(ln.species.code) : '-');
+
+  const itemName =
+    ln?.item?.name
+      ? String(ln.item.name)
+      : (ln?.species?.name ? String(ln.species.name) : (ln?.description ? String(ln.description) : '-'));
 
   return (
     <Card variant="outlined">
@@ -127,7 +137,9 @@ function LineCard({ ln }: { ln: any }) {
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Số lượng
               </Typography>
-              <Typography variant="body2">{new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(n(ln?.qty, 0))}</Typography>
+              <Typography variant="body2">
+                {new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(n(ln?.qty, 0))}
+              </Typography>
             </Grid>
 
             <Grid item xs={6}>
@@ -143,7 +155,9 @@ function LineCard({ ln }: { ln: any }) {
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 VAT (%)
               </Typography>
-              <Typography variant="body2">{new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(n(ln?.vat_percent, 0))}</Typography>
+              <Typography variant="body2">
+                {new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(n(ln?.vat_percent, 0))}
+              </Typography>
             </Grid>
 
             <Grid item xs={6}>
@@ -183,12 +197,13 @@ export default function ReceiptDetailDialog({
   receiptId,
   canApprove,
   onApprove,
-  canCreateChangeRequest,
-  onCreateChangeRequest,
+  canCancel,
+  onCancel,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Receipt | null>(null);
   const [err, setErr] = useState<string>('');
+  const [acting, setActing] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -215,7 +230,6 @@ export default function ReceiptDetailDialog({
     const f = (data as any)?.fund;
     if (!f || !hasText(f?.name)) return '-';
 
-    // Hiển thị đầy đủ, nhưng không hiển thị fund_id
     const parts = [
       `Quỹ: ${String(f.name)}`,
       hasText(f?.fund_type) ? `Hình thức: ${String(f.fund_type)}` : null,
@@ -228,11 +242,10 @@ export default function ReceiptDetailDialog({
 
   const partnerText = useMemo(() => {
     const p = (data as any)?.partner;
-    if (!p || !hasText(p?.shop_name)) return '-';
+    if (!p || !hasText(p?.name)) return '-';
 
-    // Hiển thị đầy đủ, nhưng không hiển thị partner_id
     const parts = [
-      `Đối tác: ${String(p.shop_name)}`,
+      `Đối tác: ${String(p.name)}`,
       hasText(p?.partner_type) ? `Loại: ${String(p.partner_type)}` : null,
       hasText(p?.phone) ? `SĐT: ${String(p.phone)}` : null,
       hasText(p?.address) ? `Địa chỉ: ${String(p.address)}` : null,
@@ -254,14 +267,18 @@ export default function ReceiptDetailDialog({
     );
   }, [data]);
 
+  const reload = useCallback(async (id: number) => {
+    const r = await getReceiptDetail(id);
+    setData(r);
+  }, []);
+
   useEffect(() => {
     const run = async () => {
       if (!open || !receiptId) return;
       try {
         setErr('');
         setLoading(true);
-        const r = await getReceiptDetail(receiptId);
-        setData(r);
+        await reload(receiptId);
       } catch (e: any) {
         setErr(e?.message || 'Lỗi tải chi tiết');
       } finally {
@@ -269,21 +286,44 @@ export default function ReceiptDetailDialog({
       }
     };
     run();
-  }, [open, receiptId]);
+  }, [open, receiptId, reload]);
 
   const handleApprove = async () => {
     if (!(data as any)?.id || !onApprove) return;
-    await onApprove((data as any).id);
-    const r = await getReceiptDetail((data as any).id);
-    setData(r);
+    try {
+      setActing(true);
+      await onApprove((data as any).id);
+      await reload((data as any).id);
+      enqueueSnackbar('Đã duyệt phiếu', { variant: 'success' });
+    } catch (e: any) {
+      enqueueSnackbar(e?.message || 'Duyệt thất bại', { variant: 'error' });
+    } finally {
+      setActing(false);
+    }
   };
 
-  const handleCreateCR = async () => {
-    if (!(data as any)?.id || !onCreateChangeRequest) return;
-    await onCreateChangeRequest((data as any).id);
+  // ✅ Hoàn tác = mở dialog huỷ phiếu ở list view
+  const handleCancelOpen = () => {
+    const id = (data as any)?.id;
+    if (!id || !onCancel) return;
+
+    const code = (data as any)?.code ? String((data as any).code) : '';
+    // đóng detail trước để UX mượt (tránh 2 dialog chồng nhau)
+    onClose();
+    onCancel(id, code);
   };
 
-  const canApproveNow = !!(data as any)?.id && !!canApprove && String((data as any)?.status || '') !== 'DA_DUYET';
+  const status = String((data as any)?.status || '');
+  const t = String((data as any)?.type || '');
+  const st = String((data as any)?.subtype || '');
+
+  const canApproveNow =
+    !!(data as any)?.id && !!canApprove && status !== 'DA_DUYET' && status !== 'HUY';
+
+  // ✅ giống list-view:
+  // isAdmin && status === 'DA_DUYET' && type === 'CHI' && subtype === 'THEM'
+  const canCancelNow =
+    !!(data as any)?.id && !!canCancel && status === 'DA_DUYET' && t === 'CHI' && st === 'THEM';
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
@@ -316,7 +356,6 @@ export default function ReceiptDetailDialog({
 
               <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5} sx={{ pt: { xs: 0.5, md: 0 } }}>
                 <Chip label={statusChip.label} color={statusChip.color} />
-
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Ngày: {(data as any)?.receipt_date ? fDate((data as any).receipt_date) : '-'}
                   {((data as any)?.month && (data as any)?.year) ? ` • Tháng: ${(data as any).month}/${(data as any).year}` : ''}
@@ -419,32 +458,26 @@ export default function ReceiptDetailDialog({
                   <TableRow>
                     <TableCell width={120}>Mã hàng</TableCell>
                     <TableCell>Tên / Mô tả</TableCell>
-                    <TableCell align="right" width={120}>
-                      Số lượng
-                    </TableCell>
-                    <TableCell align="right" width={140}>
-                      Đơn giá
-                    </TableCell>
-                    <TableCell align="right" width={90}>
-                      VAT (%)
-                    </TableCell>
-                    <TableCell align="right" width={140}>
-                      Trước thuế
-                    </TableCell>
-                    <TableCell align="right" width={140}>
-                      Tiền VAT
-                    </TableCell>
-                    <TableCell align="right" width={140}>
-                      Thành tiền
-                    </TableCell>
+                    <TableCell align="right" width={120}>Số lượng</TableCell>
+                    <TableCell align="right" width={140}>Đơn giá</TableCell>
+                    <TableCell align="right" width={90}>VAT (%)</TableCell>
+                    <TableCell align="right" width={140}>Trước thuế</TableCell>
+                    <TableCell align="right" width={140}>Tiền VAT</TableCell>
+                    <TableCell align="right" width={140}>Thành tiền</TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {((data as any)?.lines || []).map((ln: any) => {
-                    // KHÔNG HIỂN THỊ item_id
-                    const itemCode = ln?.item?.code ? String(ln.item.code) : '-';
-                    const itemName = ln?.item?.name ? String(ln.item.name) : (ln?.description ? String(ln.description) : '-');
+                    const itemCode =
+                      ln?.item?.code
+                        ? String(ln.item.code)
+                        : (ln?.species?.code ? String(ln?.species?.code) : '-');
+
+                    const itemName =
+                      ln?.item?.name
+                        ? String(ln.item.name)
+                        : (ln?.species?.name ? String(ln?.species?.name) : '-');
 
                     return (
                       <TableRow key={ln.id} hover>
@@ -519,17 +552,27 @@ export default function ReceiptDetailDialog({
       </DialogContent>
 
       <DialogActions sx={{ px: 2, py: 1.5 }}>
-        {(data as any)?.id && canCreateChangeRequest && (
-          <Button onClick={handleCreateCR} disabled>Tạo yêu cầu sửa / hủy</Button>
-        )}
-
-        {(data as any)?.id && canApproveNow && (
-          <Button variant="contained" onClick={handleApprove}>
-            Duyệt (áp vào kho)
+        {/* ✅ Hoàn tác = mở ReceiptCancelDialog */}
+        {(data as any)?.id && canCancelNow && (
+          <Button
+            color="warning"
+            variant="outlined"
+            onClick={handleCancelOpen}
+            disabled={acting || loading}
+          >
+            Hoàn tác
           </Button>
         )}
 
-        <Button onClick={onClose}>Đóng</Button>
+        {/* {(data as any)?.id && canApproveNow && (
+          <Button variant="contained" onClick={handleApprove} disabled={acting || loading}>
+            Duyệt (áp vào kho)
+          </Button>
+        )} */}
+
+        <Button onClick={onClose} disabled={acting || loading}>
+          Đóng
+        </Button>
       </DialogActions>
     </Dialog>
   );

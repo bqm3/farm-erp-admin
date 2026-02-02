@@ -8,7 +8,7 @@ export default function SpeciesListPage() {
   return (
     <>
       <Helmet>
-        <title> Giống loài</title>
+        <title> Vật nuôi, cây trồng</title>
       </Helmet>
 
       <SpeciesListView />

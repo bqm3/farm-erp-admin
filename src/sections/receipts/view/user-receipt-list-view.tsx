@@ -360,7 +360,7 @@ export default function ReceiptUserListView({ roles = [] }: Props) {
         onClose={() => setOpenDetail(false)}
         receiptId={detailId}
         canApprove={false}
-        canCreateChangeRequest={false}
+        canCancel={false}
       />
     </Container>
   );

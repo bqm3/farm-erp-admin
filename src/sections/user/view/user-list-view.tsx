@@ -39,7 +39,7 @@ import {
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
-
+import { useAuthContext } from 'src/auth/hooks';
 import axiosInstance from 'src/utils/axios';
 // types
 //
@@ -120,6 +120,8 @@ export default function UserListPage() {
     onChangePage,
     onChangeRowsPerPage,
   } = useTable();
+
+  const router = useRouter();
 
   const { themeStretch } = useSettingsContext();
 
@@ -272,6 +274,15 @@ export default function UserListPage() {
     setOpenEdit(true);
   };
 
+  const { user } = useAuthContext();
+  const canViewPayroll = user?.roles?.includes('ADMIN') || user?.roles?.includes('ACCOUNTANT');
+
+  const handlePayrollRow = (row: any) => {
+    if (!canViewPayroll) return;
+
+    router.push(`/dashboard/user/${row.id}/payroll-range`);
+  };
+
   return (
     <>
       <>
@@ -355,6 +366,8 @@ export default function UserListPage() {
                         onSelectRow={() => onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onEditRow={() => handleEditRow(row)}
+                        onPayrollRow={() => handlePayrollRow(row)} // ✅ FIX
+                        canViewPayroll={canViewPayroll} // ✅ pass quyền xuống row
                       />
                     ))}
 

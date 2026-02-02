@@ -145,7 +145,7 @@ export function useNavData() {
           },
           {
             // SPECIES
-            title: t('Loài'),
+            title: t('Vật nuôi, cây trồng'),
             path: paths.dashboard.species.root,
             icon: ICONS.job,
             children: [
@@ -171,7 +171,7 @@ export function useNavData() {
           },
           {
             // WORK CYCLE
-            title: t('Công việc'),
+            title: t('Vụ/lứa'),
             path: paths.dashboard.workcycle.root,
             icon: ICONS.job,
             children: [
@@ -184,7 +184,7 @@ export function useNavData() {
           },
           {
             // RECEIPT
-            title: t('Biên lai'),
+            title: t('Phiếu'),
             path: paths.dashboard.receipt.root,
             icon: ICONS.invoice,
             children: [
@@ -376,14 +376,14 @@ export function useNavData() {
           },
           {
             // WORK CYCLE
-            title: t('Công việc'),
+            title: t('Vụ/lứa'),
             path: paths.dashboard.workcycle.root,
             icon: ICONS.job,
             children: [{ title: t('list'), path: paths.dashboard.workcycle.workcycle_user }],
           },
           {
             // RECEIPT
-            title: t('Biên lai'),
+            title: t('Phiếu'),
             path: paths.dashboard.receipt.root,
             icon: ICONS.invoice,
             children: [{ title: t('Danh sách'), path: paths.dashboard.receipt.list_user }],
@@ -457,14 +457,14 @@ export function useNavData() {
           },
           {
             // WORK CYCLE
-            title: t('Công việc'),
+            title: t('Vụ/lứa'),
             path: paths.dashboard.workcycle.root,
             icon: ICONS.job,
             children: [{ title: t('list'), path: paths.dashboard.workcycle.root }],
           },
           {
             // RECEIPT
-            title: t('Biên lai'),
+            title: t('Phiếu'),
             path: paths.dashboard.receipt.root,
             icon: ICONS.invoice,
             children: [{ title: t('Danh sách'), path: paths.dashboard.receipt.root }],
@@ -561,7 +561,7 @@ export function useNavData() {
           },
           {
             // SPECIES
-            title: t('Loài'),
+            title: t('Vật nuôi, cây trồng'),
             path: paths.dashboard.species.root,
             icon: ICONS.job,
             children: [
@@ -579,7 +579,7 @@ export function useNavData() {
           },
           {
             // WORK CYCLE
-            title: t('Công việc'),
+            title: t('Vụ/lứa'),
             path: paths.dashboard.workcycle.root,
             icon: ICONS.job,
             children: [
@@ -588,7 +588,7 @@ export function useNavData() {
           },
           {
             // RECEIPT
-            title: t('Biên lai'),
+            title: t('Phiếu'),
             path: paths.dashboard.receipt.root,
             icon: ICONS.invoice,
             children: [

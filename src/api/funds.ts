@@ -60,7 +60,7 @@ export async function getFund(id: number) {
 
 export async function createFund(payload: FundCreatePayload) {
   const res = await axiosInstance.post('/api/funds', payload);
-  return res.data as { ok: boolean; data: FundRow };
+  return res.data as { ok: boolean; data: FundRow; message: string };
 }
 
 export async function updateFund(id: number, payload: FundUpdatePayload) {

@@ -29,7 +29,7 @@ export default function SpeciesEditDialog({ open, onClose, onSuccess, current }:
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const title = useMemo(() => (isEdit ? 'Cập nhật giống loài' : 'Thêm giống loài'), [isEdit]);
+  const title = useMemo(() => (isEdit ? 'Cập nhật Vật nuôi, cây trồng' : 'Thêm Vật nuôi, cây trồng'), [isEdit]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +65,7 @@ export default function SpeciesEditDialog({ open, onClose, onSuccess, current }:
       onClose();
     } catch (e: any) {
       const msg = String(e?.message || '');
-      if (msg.includes('CODE_EXISTS')) setError('Mã giống loài đã tồn tại.');
+      if (msg.includes('CODE_EXISTS')) setError('Mã Vật nuôi, cây trồng đã tồn tại.');
       else if (msg.includes('CODE_REQUIRED')) setError('Vui lòng nhập mã.');
       else if (msg.includes('NAME_REQUIRED')) setError('Vui lòng nhập tên.');
       else setError('Không thể lưu dữ liệu. Vui lòng thử lại.');
@@ -92,7 +92,7 @@ export default function SpeciesEditDialog({ open, onClose, onSuccess, current }:
           />
 
           <TextField
-            label="Tên giống loài"
+            label="Tên Vật nuôi, cây trồng"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="VD: Bò sữa HF"

@@ -5,6 +5,8 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
   Pagination, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
+import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 import { useSnackbar } from 'src/components/snackbar';
 import {
   createPartner, deletePartner, listPartners, updatePartner,
@@ -21,6 +23,7 @@ const PARTNER_TYPE_FILTER: { value: '' | PartnerType; label: string }[] = [
 
 export default function PartnerListView() {
   const { enqueueSnackbar } = useSnackbar();
+    const router = useRouter();
 
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -101,6 +104,10 @@ export default function PartnerListView() {
     }
   }
 
+  const handleView = (r: any) => {
+      router.push(paths.dashboard.partner?.details?.(String(r?.id)) || `/dashboard/partner/${r?.id}`);
+    };
+
   return (
     <>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -148,13 +155,14 @@ export default function PartnerListView() {
               {rows.map((r) => (
                 <TableRow key={r.id} hover>
                   <TableCell>{r.id}</TableCell>
-                  <TableCell>{r.shop_name}</TableCell>
+                  <TableCell>{r.name}</TableCell>
                   <TableCell>{r.partner_type}</TableCell>
                   <TableCell>{r.phone || '-'}</TableCell>
                   <TableCell>{r.address || '-'}</TableCell>
                   <TableCell>{r.bank_name || '-'}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                      <Button size="small" onClick={() => handleView(r)}>Chi tiết</Button>
                       <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
                       <Button size="small" color="error" onClick={() => askDelete(r)}>Xóa</Button>
                     </Stack>
@@ -192,7 +200,7 @@ export default function PartnerListView() {
       <Dialog open={openDelete} onClose={() => setOpenDelete(false)} fullWidth maxWidth="xs">
         <DialogTitle>Xóa đối tác?</DialogTitle>
         <DialogContent>
-          Bạn chắc chắn muốn xóa đối tác: <b>{deleting?.shop_name}</b> ?
+          Bạn chắc chắn muốn xóa đối tác: <b>{deleting?.name}</b> ?
         </DialogContent>
         <DialogActions>
           <Button color="inherit" onClick={() => setOpenDelete(false)}>Hủy</Button>

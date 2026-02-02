@@ -47,7 +47,6 @@ type FundOpt = { id: number; name: string };
 type PartnerOpt = {
   id: number;
   name?: string;
-  shop_name?: string;
   phone?: string;
 };
 
@@ -57,11 +56,9 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
   const [cycle, setCycle] = useState<any>(null);
   const [loadingCycle, setLoadingCycle] = useState(false);
 
-  // ✅ fund
   const [funds, setFunds] = useState<FundOpt[]>([]);
   const [fund_id, setFundId] = useState<string>(''); // required
 
-  // ✅ partner (optional)
   const [partners, setPartners] = useState<PartnerOpt[]>([]);
   const [partner_id, setPartnerId] = useState<number | null>(null);
 
@@ -206,11 +203,12 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
 
         lines: [
           {
+            line_kind: "GIONG",
             species_id: Number(speciesId),
             item_id: null,
             description: desc,
             qty: Number(qty),
-            unit: null,
+            unit: Number(totalBeforeTax),
             unit_price: Number(unitPrice),
             vat_percent: Number(vatPercent || 0),
           } as any,
@@ -278,7 +276,7 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
             onChange={(_, v) => setPartnerId(v?.id ?? null)}
             isOptionEqualToValue={(option, value) => option.id === value.id}
             getOptionLabel={(o) => {
-              const name = o.shop_name || o.name || `Partner #${o.id}`;
+              const name = o.name || o.name || `Partner #${o.id}`;
               const phone = o.phone ? ` (${o.phone})` : '';
               return `${name}${phone}`;
             }}
@@ -302,7 +300,7 @@ export default function ReceiptImportDialog({ open, onClose, workCycleId, onSubm
 
               <Stack spacing={0.75}>
                 <Typography variant="body2">
-                  <b>Shop:</b> {fmt(selectedPartner.shop_name || selectedPartner.name)}
+                  <b>Shop:</b> {fmt(selectedPartner.name || selectedPartner.name)}
                 </Typography>
                 <Typography variant="body2">
                   <b>SĐT:</b> {fmt(selectedPartner.phone)}

@@ -48,6 +48,8 @@ import {
   addPayrollAdjustment,
 } from 'src/api/attendance';
 import { useAuthContext } from 'src/auth/hooks';
+import { fData } from 'src/utils/format-number';
+import { fDate } from 'src/utils/format-time';
 
 type Props = {
   open: boolean;
@@ -82,6 +84,8 @@ function fmtTime(iso?: string | null) {
   const d = new Date(iso);
   return d.toLocaleString();
 }
+
+
 
 function n(v: any, fallback = 0) {
   const num = Number(v);
@@ -462,8 +466,8 @@ export default function AttendanceDetailDialog({ open, onClose, employeeId, mont
                   {leaves.map((lr) => (
                     <TableRow key={lr.id} hover>
                       <TableCell>{typeLabel(lr.leave_type)}</TableCell>
-                      <TableCell>{fmtTime(lr.from_date)} </TableCell>
-                      <TableCell>{fmtTime(lr.to_date)} </TableCell>
+                      <TableCell>{fDate(lr.from_date)} </TableCell>
+                      <TableCell>{fDate(lr.to_date)} </TableCell>
                       <TableCell align="right">{n(lr.total_days)}</TableCell>
                       <TableCell>{statusChip(lr.status)}</TableCell>
                       <TableCell>{lr.reason || '-'}</TableCell>

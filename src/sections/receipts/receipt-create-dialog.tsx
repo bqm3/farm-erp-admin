@@ -3,7 +3,6 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable no-restricted-syntax */
 // src/sections/receipts/receipt-create-dialog.tsx
-// ✅ ĐÃ SỬA ĐÚNG: NHẬP LẠI không cần fund_id (di chuyển nội bộ)
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -35,6 +34,19 @@ import { listWarehouses } from 'src/api/warehouse';
 import { listItems } from 'src/api/items';
 import { listFunds } from 'src/api/funds';
 import { listPartners } from 'src/api/partners';
+import { formatMoney, parseMoneyToNumber } from 'src/utils/format-number';
+
+function fmt(v: any) {
+  const s = v === null || v === undefined ? '' : String(v);
+  return s.trim() ? s : '-';
+}
+
+function n(v: any, fb = 0) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : fb;
+}
+
+const money = new Intl.NumberFormat('vi-VN');
 
 type Props = {
   open: boolean;
@@ -47,24 +59,42 @@ type LineForm = {
   description?: string;
   qty: number;
   unit?: string;
-  unit_price?: number;
+
+  // ⚠️ unit_price ở UI của bạn đang dùng như "TỔNG TIỀN DÒNG (trước VAT)"
+  unit_price?: number; // number để tính toán + submit
+  unit_price_text?: string; // string để hiển thị có dấu phân tách
+
   vat_percent?: number;
 };
 
-type StockReceiptMode = 'NHAP_KHO' | 'XUAT_KHO' | 'NHAP_LAI';
-type SubtypeMode = 'THEM' | 'XUAT' | 'NHAP_LAI';
+type StockReceiptMode = 'NHAP_KHO' | 'XUAT_KHO' | 'NHAP_LAI' | 'TRA_NCC';
+type SubtypeMode = 'THEM' | 'XUAT' | 'NHAP_LAI' | 'TRA_NCC';
 
-const MODE_OPTIONS: { value: StockReceiptMode; label: string }[] = [
+const MODE_OPTIONS = [
   { value: 'NHAP_KHO', label: 'Phiếu nhập kho (mua từ nhà phân phối)' },
   { value: 'XUAT_KHO', label: 'Phiếu xuất kho (cho công việc)' },
   { value: 'NHAP_LAI', label: 'Phiếu nhập lại (trả từ công việc về kho)' },
+  { value: 'TRA_NCC', label: 'Phiếu trả nhà cung cấp (xuất kho + hoàn tiền vào quỹ)' },
 ];
 
-const SUBTYPE_OPTIONS: { value: SubtypeMode; label: string }[] = [
+const SUBTYPE_OPTIONS = [
   { value: 'THEM', label: 'Thêm' },
   { value: 'XUAT', label: 'Xuất' },
   { value: 'NHAP_LAI', label: 'Nhập lại' },
+  { value: 'TRA_NCC', label: 'Trả NCC' },
 ];
+
+function makeEmptyLine(): LineForm {
+  return {
+    item_id: null,
+    description: '',
+    qty: 1,
+    unit: '',
+    unit_price: 0,
+    unit_price_text: '0',
+    vat_percent: 0,
+  };
+}
 
 export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) {
   const theme = useTheme();
@@ -76,9 +106,10 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
   const [subtype, setSubtype] = useState<SubtypeMode>('THEM');
 
   const type: ReceiptType = useMemo(() => {
-    if (mode === 'NHAP_LAI') return 'CHI'; // NHẬP LẠI = nhập kho
+    if (mode === 'NHAP_LAI') return 'CHI';
     if (mode === 'NHAP_KHO') return 'CHI';
     if (mode === 'XUAT_KHO') return 'THU';
+    if (mode === 'TRA_NCC') return 'THU';
     return 'CHI';
   }, [mode]);
 
@@ -86,11 +117,18 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     if (mode === 'NHAP_KHO') setSubtype('THEM');
     else if (mode === 'XUAT_KHO') setSubtype('XUAT');
     else if (mode === 'NHAP_LAI') setSubtype('NHAP_LAI');
+    else if (mode === 'TRA_NCC') setSubtype('TRA_NCC');
   }, [mode]);
 
   const isNhapKho = mode === 'NHAP_KHO';
   const isXuatKho = mode === 'XUAT_KHO';
   const isNhapLai = mode === 'NHAP_LAI';
+  const isTraNcc = mode === 'TRA_NCC';
+
+  // ===== Header rules (đồng bộ backend) =====
+  const fundRequired = isNhapKho || isTraNcc;
+  const partnerRequired = isTraNcc;
+  const workCycleRequired = isXuatKho || isNhapLai;
 
   const [fund_id, setFundId] = useState<string>('');
   const [funds, setFunds] = useState<{ id: number; name: string }[]>([]);
@@ -101,6 +139,9 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
   const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([]);
   const [items, setItems] = useState<any[]>([]);
 
+  const [note, setNote] = useState<string>('');
+  const [lines, setLines] = useState<LineForm[]>([makeEmptyLine()]);
+
   const [partner_id, setPartnerId] = useState<number | null>(null);
   const [partners, setPartners] = useState<any[]>([]);
 
@@ -109,15 +150,10 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     [partners, partner_id]
   );
 
-  function fmt(v: any) {
-    const s = v === null || v === undefined ? '' : String(v);
-    return s.trim() ? s : '-';
-  }
-
   const fetchPartners = useCallback(async () => {
     try {
       const res = await listPartners({ page: 1, limit: 200 });
-      const data = (res?.data ?? res?.data ?? res ?? []) as any[];
+      const data = (res?.data ?? res ?? []) as any[];
       setPartners(data);
     } catch (err: any) {
       enqueueSnackbar(err?.message || 'Load partners failed!', { variant: 'error' });
@@ -131,28 +167,25 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     return `${d.getFullYear()}-${mm}-${dd}`;
   });
 
-  const [note, setNote] = useState<string>('');
+  // helper: update line money from input text
+  const applyMoneyInput = useCallback((idx: number, raw: string) => {
+    const num = parseMoneyToNumber(raw);
+    const formatted = formatMoney(num);
+    setLines((prev) =>
+      prev.map((l, i) =>
+        i === idx
+          ? {
+              ...l,
+              unit_price: num,
+              unit_price_text: formatted,
+            }
+          : l
+      )
+    );
+  }, []);
 
-  const [lines, setLines] = useState<LineForm[]>([
-    { item_id: null, description: '', qty: 1, unit: '', unit_price: 0, vat_percent: 0 },
-  ]);
-
-  // ✅ Clear fund_id khi chuyển sang XUẤT KHO hoặc NHẬP LẠI
-  useEffect(() => {
-    if (!isNhapKho) setPartnerId(null);
-    if (isXuatKho || isNhapLai) setFundId('');
-  }, [isXuatKho, isNhapLai, isNhapKho]);
-
-  const handleAddLine = () => {
-    setLines((prev) => [
-      ...prev,
-      { item_id: null, description: '', qty: 1, unit: '', unit_price: 0, vat_percent: 0 },
-    ]);
-  };
-
-  const handleRemoveLine = (idx: number) => {
-    setLines((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const handleAddLine = () => setLines((prev) => [...prev, makeEmptyLine()]);
+  const handleRemoveLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
   const handleChangeLine = (idx: number, patch: Partial<LineForm>) => {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -163,78 +196,53 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     [items]
   );
 
-  const handleSubmit = async () => {
-    try {
-      if (!receipt_date) {
-        alert('Ngày là bắt buộc');
-        return;
-      }
+  // Clear fields khi switch mode
+  useEffect(() => {
+    // partner: chỉ giữ khi NHAP_KHO / TRA_NCC
+    if (!isNhapKho && !isTraNcc) setPartnerId(null);
 
-      // ✅ CHỈ NHẬP KHO mới bắt buộc fund_id
-      if (isNhapKho && !fund_id) {
-        alert('Phiếu nhập kho bắt buộc chọn quỹ');
-        return;
-      }
+    // fund: chỉ dùng khi NHAP_KHO / TRA_NCC
+    if (isXuatKho || isNhapLai) setFundId('');
 
-      // ✅ XUẤT KHO và NHẬP LẠI bắt buộc work_cycle_id
-      if ((isXuatKho || isNhapLai) && !work_cycle_id) {
-        alert('Phiếu này bắt buộc chọn Công việc');
-        return;
-      }
+    // workcycle: TRA_NCC không dùng
+    if (isTraNcc) setWorkCycleId('');
 
-      for (let i = 0; i < lines.length; i++) {
-        const l = lines[i];
-        if (!l.item_id) {
-          alert(`Dòng #${i + 1}: Chưa chọn Item`);
-          return;
-        }
-        const q = Number(l.qty || 0);
-        if (!(q > 0)) {
-          alert(`Dòng #${i + 1}: Số lượng phải > 0`);
-          return;
-        }
-
-        // ✅ CHỈ NHẬP KHO mới bắt buộc unit_price
-        if (isNhapKho) {
-          const up = Number(l.unit_price || 0);
-          if (!(up > 0)) {
-            alert(`Dòng #${i + 1}: Nhập kho bắt buộc unit_price > 0`);
-            return;
-          }
-        }
-      }
-
-      setSubmitting(true);
-
-      const payload: any = {
-        type,
-        subtype,
-        fund_id: isNhapKho ? Number(fund_id) : null, // ✅ CHỈ NHẬP KHO
-        partner_id: isNhapKho && partner_id ? Number(partner_id) : null,
-
-        source: 'KHO',
-        warehouse_id: Number(warehouse_id),
-        receipt_date,
-        work_cycle_id: work_cycle_id ? Number(work_cycle_id) : null,
-        note: note || null,
-
-        lines: lines.map((l) => ({
-          line_kind: 'GIONG',
-          item_id: l.item_id ? Number(l.item_id) : null,
-          description: l.description || null,
-          qty: Number(l.qty || 0),
-          unit: l.unit || null,
-          unit_price: Number(l.unit_price || 0),
-          vat_percent: Number(l.vat_percent || 0),
-        })),
-      };
-
-      await onSubmit(payload as ReceiptCreatePayload);
-      onClose();
-    } finally {
-      setSubmitting(false);
+    // XUAT_KHO / NHAP_LAI: không cho nhập tiền, reset tiền/vat về 0 để tránh submit nhầm
+    if (isXuatKho || isNhapLai) {
+      setLines((prev) =>
+        prev.map((l) => ({
+          ...l,
+          unit_price: 0,
+          unit_price_text: '0',
+          vat_percent: 0,
+        }))
+      );
     }
-  };
+  }, [isXuatKho, isNhapLai, isNhapKho, isTraNcc]);
+
+  // ===== Quick totals (chỉ meaningful khi có nhập tiền) =====
+  const totals = useMemo(() => {
+    const totalQty = lines.reduce((s, l) => s + Math.abs(n(l.qty, 0)), 0);
+    const beforeVat = lines.reduce((s, l) => s + n(l.unit_price, 0), 0);
+    const vatAmount = lines.reduce((s, l) => s + (n(l.unit_price, 0) * n(l.vat_percent, 0)) / 100, 0);
+    const total = beforeVat + vatAmount;
+
+    return { totalQty, beforeVat, vatAmount, total };
+  }, [lines]);
+
+  const headerChip = useMemo(() => {
+    if (isNhapKho) return <Chip size="small" color="warning" label="Nhập kho" />;
+    if (isXuatKho) return <Chip size="small" color="success" label="Xuất kho" />;
+    if (isNhapLai) return <Chip size="small" color="info" label="Nhập lại" />;
+    return <Chip size="small" color="secondary" label="Trả NCC" />;
+  }, [isNhapKho, isXuatKho, isNhapLai]);
+
+  const subtypeHelper = useMemo(() => {
+    if (isNhapKho) return 'Nhập kho = THEM';
+    if (isXuatKho) return 'Xuất kho = XUAT';
+    if (isNhapLai) return 'Nhập lại = NHAP_LAI';
+    return 'Trả NCC = TRA_NCC';
+  }, [isNhapKho, isXuatKho, isNhapLai]);
 
   const fetchWorkCycles = useCallback(async () => {
     try {
@@ -280,13 +288,91 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     fetchPartners();
   }, [fetchWorkCycles, fetchFunds, fetchWarehouses, fetchItems, fetchPartners]);
 
-  const headerChip = isNhapKho ? (
-    <Chip size="small" color="warning" label="Nhập kho" />
-  ) : isXuatKho ? (
-    <Chip size="small" color="success" label="Xuất kho" />
-  ) : (
-    <Chip size="small" color="info" label="Nhập lại" />
-  );
+  // ===== UI helpers =====
+  const showPartnerBox = isNhapKho || isTraNcc;
+  const allowInputMoney = isNhapKho || isTraNcc;
+  const disableMoneyField = !allowInputMoney;
+  const disableVat = isXuatKho || isNhapLai;
+
+  const handleSubmit = async () => {
+    try {
+      if (!receipt_date) {
+        alert('Ngày là bắt buộc');
+        return;
+      }
+
+      if (!warehouse_id) {
+        alert('Bắt buộc chọn kho');
+        return;
+      }
+
+      if (fundRequired && !fund_id) {
+        alert('Phiếu này bắt buộc chọn quỹ');
+        return;
+      }
+
+      if (partnerRequired && !partner_id) {
+        alert('Trả NCC bắt buộc chọn Nhà cung cấp');
+        return;
+      }
+
+      if (workCycleRequired && !work_cycle_id) {
+        alert('Phiếu này bắt buộc chọn Công việc');
+        return;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+
+        if (!l.item_id) {
+          alert(`Dòng #${i + 1}: Chưa chọn Item`);
+          return;
+        }
+
+        const q = Number(l.qty || 0);
+        if (!(q > 0)) {
+          alert(`Dòng #${i + 1}: Số lượng phải > 0`);
+          return;
+        }
+
+        if (isNhapKho || isTraNcc) {
+          const lineTotalBeforeVat = Number(l.unit_price || 0);
+          if (!(lineTotalBeforeVat > 0)) {
+            alert(`Dòng #${i + 1}: Bắt buộc nhập Tổng tiền dòng (trước VAT) > 0`);
+            return;
+          }
+        }
+      }
+
+      setSubmitting(true);
+
+      const payload: any = {
+        type,
+        subtype,
+        fund_id: fundRequired ? Number(fund_id) : null,
+        partner_id: (isNhapKho || isTraNcc) && partner_id ? Number(partner_id) : null,
+        work_cycle_id: workCycleRequired ? Number(work_cycle_id) : null,
+        source: 'KHO',
+        warehouse_id: Number(warehouse_id),
+        receipt_date,
+        note: note || null,
+        lines: lines.map((l) => ({
+          line_kind: l.item_id ? 'VAT_TU' :'GIONG',
+          item_id: l.item_id ? Number(l.item_id) : null,
+          description: l.description || null,
+          qty: Number(l.qty || 0),
+          unit: l.unit || null,
+          unit_price: Number(l.unit_price || 0),
+          vat_percent: Number(l.vat_percent || 0),
+        })),
+      };
+
+      await onSubmit(payload as ReceiptCreatePayload);
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Dialog
@@ -294,9 +380,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
       onClose={submitting ? undefined : onClose}
       maxWidth="lg"
       fullWidth
-      PaperProps={{
-        sx: { borderRadius: 2 },
-      }}
+      PaperProps={{ sx: { borderRadius: 2 } }}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
@@ -346,13 +430,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                   onChange={(e) => setSubtype(e.target.value as SubtypeMode)}
                   fullWidth
                   disabled
-                  helperText={
-                    isNhapKho 
-                      ? 'Nhập kho = THEM' 
-                      : isXuatKho 
-                      ? 'Xuất kho = XUAT'
-                      : 'Nhập lại = NHAP_LAI'
-                  }
+                  helperText={subtypeHelper}
                 >
                   {SUBTYPE_OPTIONS.map((opt) => (
                     <MenuItem key={opt.value} value={opt.value}>
@@ -362,7 +440,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 </TextField>
               </Grid>
 
-              {/* ✅ Quỹ tiền: CHỈ NHẬP KHO mới bắt buộc */}
+              {/* Quỹ tiền */}
               <Grid item xs={12} md={6}>
                 <TextField
                   select
@@ -370,14 +448,16 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                   value={fund_id}
                   onChange={(e) => setFundId(e.target.value)}
                   fullWidth
-                  disabled={isXuatKho || isNhapLai} // ✅ Disable
-                  required={isNhapKho} // ✅ CHỈ NHẬP KHO mới bắt buộc
-                  error={isNhapKho && !fund_id}
+                  disabled={isXuatKho || isNhapLai}
+                  required={fundRequired}
+                  error={fundRequired && !fund_id}
                   helperText={
-                    isXuatKho 
-                      ? 'Xuất kho: không động quỹ' 
+                    isXuatKho
+                      ? 'Xuất kho: không động quỹ'
                       : isNhapLai
                       ? 'Nhập lại: không động quỹ (di chuyển nội bộ)'
+                      : isTraNcc
+                      ? 'Trả NCC: bắt buộc chọn quỹ để hoàn tiền'
                       : ' '
                   }
                 >
@@ -386,7 +466,6 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                       <em>-- Không cần quỹ --</em>
                     </MenuItem>
                   )}
-
                   {funds.map((f) => (
                     <MenuItem key={f.id} value={f.id}>
                       {f.name}
@@ -427,15 +506,18 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
               <Grid item xs={12} md={6}>
                 <TextField
                   select
-                  label={`Công việc ${(isXuatKho || isNhapLai) ? ' *' : ''}`}
+                  label={`Công việc ${workCycleRequired ? ' *' : ''}`}
                   value={work_cycle_id}
                   onChange={(e) => setWorkCycleId(e.target.value)}
                   fullWidth
-                  required={isXuatKho || isNhapLai}
-                  error={(isXuatKho || isNhapLai) && !work_cycle_id}
+                  required={workCycleRequired}
+                  error={workCycleRequired && !work_cycle_id}
+                  disabled={isTraNcc}
                   helperText={
-                    isXuatKho 
-                      ? 'Xuất kho bắt buộc chọn công việc' 
+                    isTraNcc
+                      ? 'Trả NCC: không cần công việc'
+                      : isXuatKho
+                      ? 'Xuất kho bắt buộc chọn công việc'
                       : isNhapLai
                       ? 'Nhập lại bắt buộc chọn công việc (để biết trả từ đâu)'
                       : ' '
@@ -452,7 +534,8 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 </TextField>
               </Grid>
 
-              {isNhapKho && (
+              {/* Partner box */}
+              {showPartnerBox && (
                 <Grid item xs={12} md={6}>
                   <Autocomplete
                     options={partners}
@@ -460,12 +543,19 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                     onChange={(_, v) => setPartnerId(v?.id ?? null)}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     getOptionLabel={(o) => {
-                      const name = o.shop_name || o.name || `Partner #${o.id}`;
+                      const name = o.name || o.name || `Partner #${o.id}`;
                       const phone = o.phone ? ` (${o.phone})` : '';
                       return `${name}${phone}`;
                     }}
                     renderInput={(params) => (
-                      <TextField {...params} label="Nhà cung cấp - tuỳ chọn" fullWidth />
+                      <TextField
+                        {...params}
+                        label={isTraNcc ? 'Nhà cung cấp *' : 'Nhà cung cấp - tuỳ chọn'}
+                        fullWidth
+                        required={partnerRequired}
+                        error={partnerRequired && !partner_id}
+                        helperText={isTraNcc ? 'Trả NCC bắt buộc chọn nhà cung cấp' : ' '}
+                      />
                     )}
                   />
 
@@ -475,7 +565,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                         mt: 1,
                         p: 1.5,
                         borderRadius: 1,
-                        border: (theme) => `1px solid ${theme.palette.divider}`,
+                        border: (t) => `1px solid ${t.palette.divider}`,
                         bgcolor: 'background.neutral',
                       }}
                     >
@@ -485,7 +575,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
 
                       <Stack spacing={0.75}>
                         <Typography variant="body2">
-                          <b>Shop:</b> {fmt(selectedPartner.shop_name || selectedPartner.name)}
+                          <b>Shop:</b> {fmt(selectedPartner.name || selectedPartner.name)}
                         </Typography>
                         <Typography variant="body2">
                           <b>SĐT:</b> {fmt(selectedPartner.phone)}
@@ -517,7 +607,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 </Grid>
               )}
 
-              <Grid item xs={12} md={isNhapKho ? 6 : 12}>
+              <Grid item xs={12} md={showPartnerBox ? 6 : 12}>
                 <TextField
                   label="Ghi chú"
                   value={note}
@@ -527,15 +617,24 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 />
               </Grid>
 
-              {isXuatKho && (
+              {isNhapKho && (
                 <Grid item xs={12}>
                   <Alert severity="info">
-                    Phiếu <b>xuất kho</b> không trừ quỹ tiền (di chuyển nội bộ). Bắt buộc chọn công việc.
+                    Phiếu <b>NHẬP KHO</b> là mua từ nhà phân phối: bắt buộc chọn <b>Quỹ</b>, mỗi dòng
+                    bắt buộc nhập <b>Tổng tiền dòng (trước VAT)</b>.
                   </Alert>
                 </Grid>
               )}
 
-              {/* ✅ Alert ĐÚNG cho NHẬP LẠI */}
+              {isXuatKho && (
+                <Grid item xs={12}>
+                  <Alert severity="info">
+                    Phiếu <b>Xuất kho</b> không động quỹ (di chuyển nội bộ). Bắt buộc chọn công việc.
+                    Giá vốn được tính khi duyệt.
+                  </Alert>
+                </Grid>
+              )}
+
               {isNhapLai && (
                 <Grid item xs={12}>
                   <Alert severity="info">
@@ -543,23 +642,62 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                       Phiếu <b>NHẬP LẠI</b> - Trả vật tư dư thừa từ công việc về kho
                     </Typography>
                     <Typography variant="body2">
-                      • VD: Xuất 100 bao cho công việc → dùng 80 → trả lại 20 bao
-                      <br />
-                      • <b>Không động quỹ:</b> tiền đã trả nhà phân phối từ đầu khi mua
-                      <br />
-                      • Chỉ di chuyển nội bộ: từ trang trại về kho
-                      <br />
-                      • Khi duyệt: Tồn kho <b>+20</b> • Công việc <b>-20</b> • Quỹ <b>KHÔNG ĐỔI</b>
-                      <br />
-                      • Giá vốn tự động: lấy theo giá trung bình hiện tại trong kho
+                      • VD: Xuất 100 bao → dùng 80 → trả lại 20 bao
+                      <br />• <b>Không động quỹ:</b> tiền đã trả lúc mua
+                      <br />• Khi duyệt: Tồn kho <b>+20</b> • Công việc <b>-20</b> • Quỹ <b>KHÔNG ĐỔI</b>
+                      <br />• Giá vốn tự động: lấy theo giá trung bình kho
                     </Typography>
                   </Alert>
+                </Grid>
+              )}
+
+              {isTraNcc && (
+                <Grid item xs={12}>
+                  <Alert severity="warning">
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                      Phiếu <b>TRẢ NHÀ CUNG CẤP</b>
+                    </Typography>
+                    <Typography variant="body2">
+                      • Bắt buộc chọn <b>Quỹ</b> để hoàn tiền và chọn <b>Nhà cung cấp</b>
+                      <br />• Mỗi dòng bắt buộc nhập <b>Tổng tiền dòng (trước VAT)</b>
+                      <br />• Khi duyệt: Kho <b>giảm</b> theo số lượng • Quỹ <b>tăng</b> theo số tiền hoàn
+                    </Typography>
+                  </Alert>
+                </Grid>
+              )}
+
+              {(isNhapKho || isTraNcc) && (
+                <Grid item xs={12}>
+                  <Card variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+                    <Stack
+                      direction={{ xs: 'column', md: 'row' }}
+                      spacing={1}
+                      alignItems={{ xs: 'flex-start', md: 'center' }}
+                      justifyContent="space-between"
+                    >
+                      <Typography variant="subtitle2">Tổng hợp nhanh</Typography>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <Typography variant="body2">
+                          <b>Tổng SL:</b> {money.format(totals.totalQty)}
+                        </Typography>
+                        <Typography variant="body2">
+                          <b>Trước VAT:</b> {money.format(Math.round(totals.beforeVat))}
+                        </Typography>
+                        <Typography variant="body2">
+                          <b>VAT:</b> {money.format(Math.round(totals.vatAmount))}
+                        </Typography>
+                        <Typography variant="body2">
+                          <b>Tổng:</b> {money.format(Math.round(totals.total))}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Card>
                 </Grid>
               )}
             </Grid>
           </Card>
 
-          {/* Lines - giữ nguyên phần này */}
+          {/* Lines */}
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack spacing={0.25}>
               <Typography variant="subtitle1">Chi tiết hàng hoá</Typography>
@@ -577,6 +715,15 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
             {lines.map((l, idx) => {
               const selected = findItemById(l.item_id ?? null);
 
+              const moneyHelper = isXuatKho
+                ? 'Xuất: giá vốn tính khi duyệt'
+                : isNhapLai
+                ? 'Nhập lại: giá vốn tự động'
+                : isTraNcc
+                ? 'Bắt buộc nhập: số tiền hoàn * dòng'
+                : 'Giá tiền * số lượng';
+
+              // ===== Mobile =====
               if (isMobile) {
                 return (
                   <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
@@ -639,21 +786,19 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
 
                         <Grid item xs={7}>
                           <TextField
-                            label="Giá tiền"
-                            type="number"
-                            value={l.unit_price ?? 0}
-                            onChange={(e) =>
-                              handleChangeLine(idx, { unit_price: Number(e.target.value) })
+                            label="Tổng tiền dòng (trước VAT)"
+                            value={l.unit_price_text ?? formatMoney(l.unit_price ?? 0)}
+                            onChange={(e) => applyMoneyInput(idx, e.target.value)}
+                            onBlur={() =>
+                              handleChangeLine(idx, {
+                                unit_price_text: formatMoney(n(l.unit_price, 0)),
+                              })
                             }
+                            inputProps={{ inputMode: 'numeric' }}
                             fullWidth
-                            disabled={isXuatKho || isNhapLai}
-                            helperText={
-                              isXuatKho 
-                                ? 'Xuất: giá vốn tính khi duyệt' 
-                                : isNhapLai
-                                ? 'Nhập lại: giá vốn tự động'
-                                : 'Giá tiền 1 đơn vị'
-                            }
+                            disabled={disableMoneyField}
+                            required={isNhapKho || isTraNcc}
+                            helperText={moneyHelper}
                           />
                         </Grid>
 
@@ -662,11 +807,9 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                             label="VAT %"
                             type="number"
                             value={l.vat_percent ?? 0}
-                            onChange={(e) =>
-                              handleChangeLine(idx, { vat_percent: Number(e.target.value) })
-                            }
+                            onChange={(e) => handleChangeLine(idx, { vat_percent: Number(e.target.value) })}
                             fullWidth
-                            disabled={isXuatKho}
+                            disabled={disableVat}
                           />
                         </Grid>
                       </Grid>
@@ -675,6 +818,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 );
               }
 
+              // ===== Desktop =====
               return (
                 <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                   <Stack spacing={1}>
@@ -732,32 +876,28 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                       />
 
                       <TextField
-                        label="Giá tiền"
-                        type="number"
-                        value={l.unit_price ?? 0}
-                        onChange={(e) =>
-                          handleChangeLine(idx, { unit_price: Number(e.target.value) })
+                        label="Tổng tiền dòng (trước VAT)"
+                        value={l.unit_price_text ?? formatMoney(l.unit_price ?? 0)}
+                        onChange={(e) => applyMoneyInput(idx, e.target.value)}
+                        onBlur={() =>
+                          handleChangeLine(idx, {
+                            unit_price_text: formatMoney(n(l.unit_price, 0)),
+                          })
                         }
-                        sx={{ width: 170 }}
-                        disabled={isXuatKho || isNhapLai}
-                        helperText={
-                          isXuatKho 
-                            ? 'Xuất: tính khi duyệt' 
-                            : isNhapLai
-                            ? 'Nhập lại: tự động'
-                            : ' '
-                        }
+                        inputProps={{ inputMode: 'numeric' }}
+                        sx={{ width: 240 }}
+                        disabled={disableMoneyField}
+                        required={isNhapKho || isTraNcc}
+                        helperText={moneyHelper}
                       />
 
                       <TextField
                         label="VAT %"
                         type="number"
                         value={l.vat_percent ?? 0}
-                        onChange={(e) =>
-                          handleChangeLine(idx, { vat_percent: Number(e.target.value) })
-                        }
+                        onChange={(e) => handleChangeLine(idx, { vat_percent: Number(e.target.value) })}
                         sx={{ width: 110 }}
-                        disabled={isXuatKho}
+                        disabled={disableVat}
                       />
                     </Stack>
                   </Stack>

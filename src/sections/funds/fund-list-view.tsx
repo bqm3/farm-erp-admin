@@ -106,8 +106,9 @@ export default function FundListView() {
       }
       await fetchData();
     } catch (e: any) {
+      console.log('e', e)
       enqueueSnackbar(e?.message || 'Save fund failed', { variant: 'error' });
-      throw e;
+      // throw e;
     }
   }
 

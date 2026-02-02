@@ -125,7 +125,7 @@ function displayPartner(r: any) {
   const p = r?.partner;
   if (!p) return '—';
   const phone = p.phone ? ` (${p.phone})` : '';
-  return `${p.shop_name || p.name || '—'}${phone}`;
+  return `${p.name || p.name || '—'}${phone}`;
 }
 
 function displayTask(r: any) {
@@ -355,7 +355,7 @@ export default function WorkCycleReceiptListView({
     <>
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Typography variant="h5">Danh sách biên lai</Typography>
+          <Typography variant="h5">Danh sách Phiếu</Typography>
           <Stack direction="row" spacing={1}>
             <Button variant="contained" onClick={() => setOpenImport(true)}>
               Tạo phiếu nhập giống
@@ -615,7 +615,7 @@ export default function WorkCycleReceiptListView({
       </Dialog>
 
       <Dialog open={detail.open} onClose={() => setDetail({ open: false })} maxWidth="md" fullWidth>
-        <DialogTitle>Chi tiết biên lai</DialogTitle>
+        <DialogTitle>Chi tiết Phiếu</DialogTitle>
 
         <DialogContent sx={{ pt: 1 }}>
           {detailRow ? (
@@ -705,7 +705,6 @@ export default function WorkCycleReceiptListView({
                   <TableHead>
                     <TableRow>
                       <TableCell>#</TableCell>
-                      <TableCell>Loại dòng</TableCell>
                       <TableCell>Hàng hóa</TableCell>
                       <TableCell>Mô tả</TableCell>
                       <TableCell align="right">SL</TableCell>
@@ -720,7 +719,6 @@ export default function WorkCycleReceiptListView({
                     {detailLines.map((ln: any, idx: number) => (
                       <TableRow key={ln.id ?? idx} hover>
                         <TableCell>{ln.line_no ?? idx + 1}</TableCell>
-                        <TableCell>{ln.line_kind ?? '—'}</TableCell>
                         <TableCell>
                           <Typography variant="body2">{displayLineItemWithSpecies(ln)}</Typography>
                         </TableCell>

@@ -82,7 +82,6 @@ export default function UserUpsertDialog({
       salary_base: 0,
       status: 'ACTIVE',
       work_days_per_month: 26,
-      farm_id: 1,
       role: 'STAFF', // ✅ chỉ 1 role
     });
   }, [open]);
@@ -183,7 +182,7 @@ export default function UserUpsertDialog({
 
   const canSubmit = useMemo(() => {
     if (!form) return false;
-    if (!form.username || !form.full_name || !form.email || !form.phone) return false;
+    if (!form.username || !form.full_name || !form.phone) return false;
     if (!isEdit && !form.password?.trim()) return false; // create bắt buộc password
     return true;
   }, [form, isEdit]);
@@ -363,7 +362,6 @@ export default function UserUpsertDialog({
                 >
                   <MenuItem value="FULLTIME">Toàn thời gian</MenuItem>
                   <MenuItem value="PARTTIME">Bán thời gian</MenuItem>
-                  <MenuItem value="CONTRACT">Hợp đồng</MenuItem>
                 </TextField>
               </Grid>
 
@@ -413,7 +411,7 @@ export default function UserUpsertDialog({
         <Button onClick={onClose} disabled={loading}>
           Hủy
         </Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={loading || !canSubmit || !form}>
+        <Button variant="contained" onClick={handleSubmit} disabled={loading || !canSubmit}>
           {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo mới'}
         </Button>
       </DialogActions>

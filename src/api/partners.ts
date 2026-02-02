@@ -7,7 +7,7 @@ export type PartnerRow = {
   farm_id?: number;
 
   partner_type: PartnerType;
-  shop_name: string;
+  name: string;
   phone?: string | null;
   address?: string | null;
 
@@ -25,7 +25,7 @@ export type PartnerRow = {
 
 export type PartnerCreatePayload = {
   partner_type: PartnerType;
-  shop_name: string;
+  name: string;
   phone?: string | null;
   address?: string | null;
   supplier_name?: string | null;
@@ -72,4 +72,16 @@ export async function updatePartner(id: number, payload: PartnerUpdatePayload) {
 export async function deletePartner(id: number) {
   const res = await axiosInstance.delete(`/api/partners/${id}`);
   return res.data as { ok: boolean };
+}
+
+export async function getPartnerTransactions(partnerId: number, params: any) {
+  const res = await axiosInstance.get(`/api/partners/${partnerId}/transactions`, { params });
+  return res.data;
+}
+
+export function exportPartnerTransactions(partnerId: number, params: any) {
+  return axiosInstance.get(`/api/partners/${partnerId}/transactions/export`, {
+    params,
+    responseType: "blob",
+  });
 }

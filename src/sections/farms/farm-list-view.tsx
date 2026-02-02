@@ -33,6 +33,7 @@ import {
   type FarmStatus,
 } from 'src/api/farm';
 import { selectFarm } from 'src/api/session';
+import { useAuthContext } from 'src/auth/hooks';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import { setSession } from 'src/auth/context/jwt/utils';
 
@@ -47,6 +48,7 @@ function statusChip(s?: FarmStatus) {
 export default function FarmListView({ canEdit = false }: { canEdit?: boolean }) {
   const { enqueueSnackbar } = useSnackbar();
 
+  const { user } = useAuthContext();
   const [rows, setRows] = useState<FarmRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -72,15 +74,14 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
   );
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('activeFarm');
-    if (raw) {
+    if (user) {
       try {
-        setActiveFarm(JSON.parse(raw));
+        setActiveFarm(user?.farm);
       } catch {
         // ignore
       }
     }
-  }, []);
+  }, [user]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -174,16 +175,12 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
           <Stack direction="row" alignItems="center" spacing={1}>
             <Typography variant="h5">Quản lý dự án</Typography>
 
-            {activeFarm && (
-              <Chip
-                size="small"
-                color="primary"
-                variant="outlined"
-                label={`Đang ở: ${activeFarm.name}${
-                  activeFarm.code ? ` (${activeFarm.code})` : ''
-                }`}
-              />
-            )}
+            <Chip
+              size="small"
+              color="primary"
+              variant="outlined"
+              label={`Đang ở: ${activeFarm?.name}${activeFarm?.code ? ` (${activeFarm?.code})` : ''}`}
+            />
           </Stack>
 
           {canEdit && (
@@ -242,7 +239,7 @@ export default function FarmListView({ canEdit = false }: { canEdit?: boolean })
                   <TableCell width={140}>Code</TableCell>
                   <TableCell>Tên</TableCell>
                   <TableCell>Địa chỉ</TableCell>
-                  <TableCell width={120}>Status</TableCell>
+                  <TableCell width={120}>Trạng thái</TableCell>
                   <TableCell width={300}>Thao tác</TableCell>
                 </TableRow>
               </TableHead>

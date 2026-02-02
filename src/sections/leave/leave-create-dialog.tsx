@@ -35,7 +35,9 @@ function diffDaysInclusive(from: string, to: string) {
 }
 
 function normText(v?: any) {
-  return String(v || '').trim().toLowerCase();
+  return String(v || '')
+    .trim()
+    .toLowerCase();
 }
 
 export default function LeaveCreateDialog({
@@ -71,14 +73,7 @@ export default function LeaveCreateDialog({
     const q = normText(employeeQ);
     if (!q) return employees || [];
     return (employees || []).filter((u) => {
-      const hay = [
-        u?.full_name,
-        u?.name,
-        u?.email,
-        u?.code,
-        u?.phone,
-        u?.id,
-      ]
+      const hay = [u?.full_name, u?.name, u?.email, u?.code, u?.phone, u?.id]
         .map(normText)
         .join(' ');
       return hay.includes(q);
@@ -173,15 +168,18 @@ export default function LeaveCreateDialog({
 
     if (totalDays === 0.5) {
       if (from !== to) throw new Error('Nghỉ 0.5 ngày thì Từ ngày phải bằng Đến ngày');
-      return;
+      
+    } else {
+      setTotalDays(rangeDays);
     }
 
     // totalDays is integer day options; enforce range match so dữ liệu sạch
-    const rd = rangeDays;
-    if (rd <= 0) throw new Error('Khoảng ngày không hợp lệ');
-    if (totalDays !== rd) {
-      throw new Error(`Số ngày (${totalDays}) không khớp khoảng chọn (${rd}). Hãy chỉnh lại ngày hoặc số ngày.`);
-    }
+    // const rd = rangeDays;
+    // if (rd <= 0) throw new Error('Khoảng ngày không hợp lệ');
+    // if (totalDays !== rd) {
+
+    //   // throw new Error(`Số ngày (${rd}) không khớp khoảng chọn (${rd}). Hãy chỉnh lại ngày hoặc số ngày.`);
+    // }
   };
 
   const submit = async () => {
@@ -282,12 +280,8 @@ export default function LeaveCreateDialog({
               fullWidth
               helperText={totalDays === 0.5 ? 'Nửa ngày: hệ thống sẽ tự ép Đến ngày = Từ ngày' : ''}
             >
+              <MenuItem value={0}>-------</MenuItem>
               <MenuItem value={0.5}>0.5 ngày</MenuItem>
-              <MenuItem value={1}>1 ngày</MenuItem>
-              <MenuItem value={2}>2 ngày</MenuItem>
-              <MenuItem value={3}>3 ngày</MenuItem>
-              <MenuItem value={4}>4 ngày</MenuItem>
-              <MenuItem value={5}>5 ngày</MenuItem>
             </TextField>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>

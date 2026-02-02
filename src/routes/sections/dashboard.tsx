@@ -16,6 +16,7 @@ const UserCardsPage = lazy(() => import('src/pages/dashboard/user/cards'));
 const UserListPage = lazy(() => import('src/pages/dashboard/user/list'));
 const UserCreatePage = lazy(() => import('src/pages/dashboard/user/new'));
 const UserEditPage = lazy(() => import('src/pages/dashboard/user/edit'));
+const EmployeePayrollRangePage = lazy(() => import('src/pages/dashboard/user/user_payroll'));
 
 // DEPARTMENT
 const DepartmentListPage = lazy(() => import('src/pages/dashboard/department/list'));
@@ -45,10 +46,13 @@ const SpeciesListPage = lazy(() => import('src/pages/dashboard/species/list'));
 
 // FARMS
 const FarmListPage = lazy(() => import('src/pages/dashboard/farm/list'));
+
 // FUND
 const FundPage = lazy(() => import('src/pages/dashboard/fund/list'));
+
 // PARTNER
 const PartnerPage = lazy(() => import('src/pages/dashboard/partner/list'));
+const PartnerDetailView = lazy(() => import('src/pages/dashboard/partner/detail'));
 
 // WORK CYCLE
 const WorkCycleDetailsPage = lazy(() => import('src/pages/dashboard/workcycle/detail'));
@@ -92,6 +96,7 @@ export const dashboardRoutes = [
           { path: 'list', element: <UserListPage /> },
           { path: 'new', element: <UserCreatePage /> },
           { path: ':id/edit', element: <UserEditPage /> },
+          { path: ':id/payroll-range', element: <EmployeePayrollRangePage /> },
         ],
       },
        {
@@ -162,6 +167,8 @@ export const dashboardRoutes = [
             element: <PartnerPage />, index: true
           },
           { path: 'list', element: <PartnerPage /> },
+          
+          { path: ':id', element: <PartnerDetailView /> },
         ]
       },
       

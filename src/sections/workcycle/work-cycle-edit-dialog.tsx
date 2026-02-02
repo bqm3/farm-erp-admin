@@ -142,7 +142,7 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{isEdit ? 'Sửa công việc' : 'Tạo công việc'}</DialogTitle>
+      <DialogTitle>{isEdit ? 'Sửa lứa/ vụ' : 'Tạo lứa/ vụ'}</DialogTitle>
 
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -173,11 +173,12 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
 
           <TextField
             select
-            label="Giống loài"
+            label="Vật nuôi, cây trồng"
             value={form.species_id || ''}
             onChange={(e) => setForm((prev) => ({ ...prev, species_id: Number((e.target as any).value) }))}
             required
             disabled={speciesLoading}
+            InputLabelProps={{ shrink: true }}
             SelectProps={{ displayEmpty: true }}
             InputProps={{
               endAdornment: speciesLoading ? (
@@ -188,7 +189,7 @@ export default function WorkCycleEditDialog({ open, onClose, onSubmit, initial }
             }}
           >
             <MenuItem value="" disabled>
-              {speciesLoading ? 'Đang tải danh sách...' : 'Chọn giống loài'}
+              {speciesLoading ? 'Đang tải danh sách...' : 'Chọn Vật nuôi, cây trồng'}
             </MenuItem>
 
             {speciesOptions.map((s) => (

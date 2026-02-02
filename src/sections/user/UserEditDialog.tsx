@@ -123,7 +123,7 @@ export default function UserEditDialog({ open, onClose, onUpdated, userId, initi
 
   const canSubmit = useMemo(() => {
     if (!form) return false;
-    return form.username && form.full_name && form.email && form.phone;
+    return form.username && form.full_name && form.phone;
   }, [form]);
 
   const handleSubmit = async () => {

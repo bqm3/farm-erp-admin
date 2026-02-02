@@ -81,7 +81,8 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
 
   // filters
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState<LeaveStatus | ''>('');
+  const debouncedQ = useDebouncedValue(q, 2000); 
+  const [status, setStatus] = useState<LeaveStatus | ''>(''); 
   const [leaveType, setLeaveType] = useState<LeaveType | ''>('');
   const [from, setFrom] = useState<string>(''); // YYYY-MM-DD
   const [to, setTo] = useState<string>(''); // YYYY-MM-DD
@@ -99,11 +100,22 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count]);
 
+  function useDebouncedValue<T>(value: T, delay = 800) {
+    const [debounced, setDebounced] = useState(value);
+
+    useEffect(() => {
+      const t = window.setTimeout(() => setDebounced(value), delay);
+      return () => window.clearTimeout(t);
+    }, [value, delay]);
+
+    return debounced;
+  }
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await listLeaveRequests({
-        q: q || undefined,
+         q: debouncedQ?.trim() || undefined,  // ✅ dùng debounced
         status: status || undefined,
         leave_type: leaveType || undefined,
         from: from || undefined,
@@ -120,7 +132,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
     } finally {
       setLoading(false);
     }
-  }, [enqueueSnackbar, q, status, leaveType, from, to, page]);
+  }, [enqueueSnackbar, debouncedQ, status, leaveType, from, to, page]);
 
   useEffect(() => {
     fetchData();
@@ -128,8 +140,8 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
 
   // reset page khi đổi filter
   useEffect(() => {
-    setPage(1);
-  }, [q, status, leaveType, from, to]);
+  setPage(1);
+}, [debouncedQ, status, leaveType, from, to]);
 
   const handleApprove = async (id: number) => {
     try {
@@ -159,7 +171,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
     <Container maxWidth="xl">
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h4">Đơn nghỉ phép</Typography>
-       <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1}>
           {canApprove && (
             <Button
               variant="contained"
@@ -285,7 +297,10 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
             <TableBody>
               {rows.map((r) => {
                 const employeeText =
-                  r.employee?.full_name || r.employee?.email || r.employee?.code || `#${r.employee_id}`;
+                  r.employee?.full_name ||
+                  r.employee?.email ||
+                  r.employee?.code ||
+                  `#${r.employee_id}`;
 
                 const canAct = r.status === 'PENDING';
 

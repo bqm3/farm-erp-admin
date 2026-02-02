@@ -69,7 +69,7 @@ export default function SpeciesListView() {
 
   const handleDelete = async (row: ISpecies) => {
     // confirm đơn giản (bạn có thể thay bằng ConfirmDialog component của template)
-    const ok = window.confirm(`Xóa giống loài "${row.name}"?`);
+    const ok = window.confirm(`Xóa Vật nuôi, cây trồng "${row.name}"?`);
     if (!ok) return;
     await apiDeleteSpecies(row.id);
     fetchData();
@@ -89,11 +89,11 @@ export default function SpeciesListView() {
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
       <CustomBreadcrumbs
-        heading="Giống loài"
+        heading="Vật nuôi, cây trồng"
         links={[
           { name: 'Dashboard', href: paths.dashboard?.root || '/dashboard' },
           { name: 'Danh mục', href: paths.dashboard?.root || '/dashboard' },
-          { name: 'Giống loài' },
+          { name: 'Vật nuôi, cây trồng' },
         ]}
         action={
           <Button
@@ -101,7 +101,7 @@ export default function SpeciesListView() {
             startIcon={<Iconify icon="mingcute:add-line" />}
             onClick={handleOpenCreate}
           >
-            Thêm giống loài
+            Thêm Vật nuôi, cây trồng
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

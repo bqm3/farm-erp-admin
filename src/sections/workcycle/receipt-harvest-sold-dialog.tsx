@@ -47,7 +47,6 @@ type FundOpt = { id: number; name: string };
 type PartnerOpt = {
   id: number;
   name?: string;
-  shop_name?: string;
   phone?: string;
 };
 
@@ -342,7 +341,7 @@ export default function ReceiptTHU_HOACHSoldDialog({
             onChange={(_, v) => setPartnerId(v?.id ?? null)}
             isOptionEqualToValue={(option, value) => option.id === value.id}
             getOptionLabel={(o) => {
-              const name = o.shop_name || o.name || `Partner #${o.id}`;
+              const name = o.name || o.name || `Partner #${o.id}`;
               const phone = o.phone ? ` (${o.phone})` : '';
               return `${name}${phone}`;
             }}
@@ -366,7 +365,7 @@ export default function ReceiptTHU_HOACHSoldDialog({
 
               <Stack spacing={0.75}>
                 <Typography variant="body2">
-                  <b>Shop:</b> {fmt(selectedPartner.shop_name || selectedPartner.name)}
+                  <b>Shop:</b> {fmt(selectedPartner.name || selectedPartner.name)}
                 </Typography>
                 <Typography variant="body2">
                   <b>SĐT:</b> {fmt(selectedPartner.phone)}

@@ -28,6 +28,8 @@ import UserQuickEditForm from './user-quick-edit-form';
 type Props = {
   selected: boolean;
   onEditRow: VoidFunction;
+  onPayrollRow: VoidFunction;     // ✅ thêm
+  canViewPayroll: boolean;        // ✅ thêm
   row: any;
   onSelectRow: VoidFunction;
   onDeleteRow: VoidFunction;
@@ -37,6 +39,8 @@ export default function UserTableRow({
   row,
   selected,
   onEditRow,
+  onPayrollRow,
+  canViewPayroll,
   onSelectRow,
   onDeleteRow,
 }: Props) {
@@ -129,6 +133,18 @@ export default function UserTableRow({
         arrow="right-top"
         sx={{ width: 140 }}
       >
+          {/* ✅ XEM LƯƠNG - chỉ ADMIN/ACCOUNTANT */}
+        {canViewPayroll && (
+          <MenuItem
+            onClick={() => {
+              onPayrollRow();
+              handleClosePopover();
+            }}
+          >
+            <Iconify icon="mdi:cash-multiple" />
+            Xem lương
+          </MenuItem>
+        )}
          <MenuItem
           onClick={() => {
             onEditRow();

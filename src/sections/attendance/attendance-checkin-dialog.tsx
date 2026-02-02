@@ -12,7 +12,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useSnackbar } from 'src/components/snackbar';
-import { helpCheckInAttendance, type UserOption } from 'src/api/attendance';
+import { helpCheckInAttendanceRange, type UserOption } from 'src/api/attendance';
 
 function toYmd(d: Date) {
   const y = d.getFullYear();
@@ -39,14 +39,17 @@ export default function AttendanceCheckInDialog({
   const { enqueueSnackbar } = useSnackbar();
 
   const [employeeId, setEmployeeId] = useState<number | ''>('');
-  const [date, setDate] = useState<string>(''); // YYYY-MM-DD
+  const [fromDate, setFromDate] = useState<string>(''); // YYYY-MM-DD
+  const [toDate, setToDate] = useState<string>('');     // YYYY-MM-DD
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setEmployeeId(defaultEmployeeId ?? '');
-      setDate(toYmd(new Date())); // mặc định hôm nay
+      const today = toYmd(new Date());
+      setFromDate(today);
+      setToDate(today);
       setNote('');
     }
   }, [open, defaultEmployeeId]);
@@ -56,22 +59,34 @@ export default function AttendanceCheckInDialog({
     [users, employeeId]
   );
 
-  const canSubmit = Boolean(employeeId) && Boolean(date) && note.trim().length > 0;
+  const canSubmit =
+    Boolean(employeeId) &&
+    Boolean(fromDate) &&
+    Boolean(toDate) &&
+    note.trim().length > 0 &&
+    fromDate <= toDate; // string YYYY-MM-DD so sánh được
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      enqueueSnackbar('Vui lòng chọn nhân viên, chọn ngày và nhập lý do (note)!', { variant: 'warning' });
+      enqueueSnackbar('Vui lòng chọn nhân viên, chọn từ ngày → đến ngày và nhập lý do!', { variant: 'warning' });
       return;
     }
 
     setSaving(true);
     try {
-      await helpCheckInAttendance({
+      const res = await helpCheckInAttendanceRange({
         employee_id: Number(employeeId),
-        date,
+        from_date: fromDate,
+        to_date: toDate,
         note: note.trim(),
+        // strict: false, // nếu muốn: gặp ngày đã có thì bỏ qua
       });
-      enqueueSnackbar('Chấm công hộ thành công!', { variant: 'success' });
+
+      enqueueSnackbar(
+        `Chấm công hộ thành công: tạo ${res.data.created} ngày, bỏ qua ${res.data.skipped} ngày.`,
+        { variant: 'success' }
+      );
+
       onClose();
       onSuccess?.();
     } catch (err: any) {
@@ -83,7 +98,7 @@ export default function AttendanceCheckInDialog({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Chấm công hộ</DialogTitle>
+      <DialogTitle>Chấm công hộ (nhiều ngày)</DialogTitle>
 
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -101,14 +116,26 @@ export default function AttendanceCheckInDialog({
             ))}
           </TextField>
 
-          <TextField
-            fullWidth
-            label="Ngày chấm công"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              label="Từ ngày"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              label="Đến ngày"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              error={Boolean(fromDate && toDate && fromDate > toDate)}
+              helperText={fromDate && toDate && fromDate > toDate ? 'Đến ngày phải >= Từ ngày' : ' '}
+            />
+          </Stack>
 
           {selectedUser && (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>

@@ -45,6 +45,7 @@ import { createReceipt } from 'src/api/receipts';
 import WarehouseEditDialog from '../warehouse-edit-dialog';
 import StockSetQtyDialog from '../stock-setqty-dialog';
 import MovementCreateDialog from '../movement-create-dialog';
+import ItemLedgerDialog from '../item-ledger-dialog';
 
 type TabValue = 'WAREHOUSE' | 'STOCK' | 'MOVEMENT';
 
@@ -79,6 +80,14 @@ export default function WarehouseManageView() {
   const [movements, setMovements] = useState<WarehouseMovement[]>([]);
   const [openReceiptDlg, setOpenReceiptDlg] = useState(false);
   const [defaultReceiptType, setDefaultReceiptType] = useState<'THU' | 'CHI'>('THU');
+
+  const [openLedger, setOpenLedger] = useState(false);
+  const [ledgerStock, setLedgerStock] = useState<WarehouseStock | null>(null);
+
+  const onOpenLedger = (row: WarehouseStock) => {
+    setLedgerStock(row);
+    setOpenLedger(true);
+  };
 
   const selectedWarehouseId = selectedWarehouse?.id ?? 0;
 
@@ -358,6 +367,9 @@ export default function WarehouseManageView() {
                     <TableCell width={90} align="right">
                       Sửa
                     </TableCell>
+                    <TableCell width={90} align="right">
+                      Chi tiết
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -373,6 +385,16 @@ export default function WarehouseManageView() {
                         <IconButton onClick={() => onOpenSetQty(s)} title="Thiết lập">
                           <Iconify icon="solar:pen-bold" />
                         </IconButton>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onOpenLedger(s)}
+                          startIcon={<Iconify icon="solar:eye-bold" />}
+                        >
+                          Xem
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -432,7 +454,7 @@ export default function WarehouseManageView() {
                     <TableCell width={160} align="right">
                       Tổng tiền
                     </TableCell>
-                    <TableCell width={200}>Mã biên lai</TableCell>
+                    <TableCell width={200}>Mã Phiếu</TableCell>
                     <TableCell width={160}>Thời gian</TableCell>
                   </TableRow>
                 </TableHead>
@@ -502,6 +524,16 @@ export default function WarehouseManageView() {
             warehouse_id: selectedWarehouseId, // ép kho đang chọn
           })
         }
+      />
+
+      <ItemLedgerDialog
+        open={openLedger}
+        warehouseId={selectedWarehouseId}
+        stock={ledgerStock}
+        onClose={() => {
+          setOpenLedger(false);
+          setLedgerStock(null);
+        }}
       />
     </Card>
   );

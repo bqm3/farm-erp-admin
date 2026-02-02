@@ -120,14 +120,14 @@ export default function WorkCycleListView() {
   return (
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h5">Danh sách công việc</Typography>
+        <Typography variant="h5">Danh sách Vụ (lứa, vụ, đợt sản xuất) </Typography>
 
         <Button
           variant="contained"
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={handleOpenCreate}
         >
-          Tạo chuồng
+          Tạo lứa
         </Button>
       </Stack>
 

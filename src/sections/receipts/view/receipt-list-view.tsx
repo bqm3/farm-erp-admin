@@ -390,14 +390,6 @@ export default function ReceiptListView({ roles = [] }: Props) {
                   <MenuItem value="TU_CHOI">Từ chối</MenuItem>
                 </TextField>
 
-                {/* <TextField
-                  label="Work cycle ID"
-                  value={workCycleId}
-                  onChange={(e) => setWorkCycleId(e.target.value)}
-                  sx={{ width: { xs: '100%', md: 170 } }}
-                  placeholder="vd: 1"
-                /> */}
-
                 <TextField
                   type="date"
                   label="Từ ngày"
@@ -485,8 +477,8 @@ export default function ReceiptListView({ roles = [] }: Props) {
                     : null;
 
                   const fundText = hasText(r?.fund?.name) ? `Quỹ: ${r.fund.name}` : null;
-                  const partnerText = hasText(r?.partner?.shop_name)
-                    ? `Đối tác: ${r.partner.shop_name}`
+                  const partnerText = hasText(r?.partner?.name)
+                    ? `Đối tác: ${r.partner.name}`
                     : null;
 
                   const relatedLine1 = joinParts([cycleText, warehouseText], ' • ');
@@ -619,13 +611,19 @@ export default function ReceiptListView({ roles = [] }: Props) {
                               </>
                             )}
 
-                            {isAdmin && r.status === 'DA_DUYET' && r?.type === 'CHI' && r?.subtype === 'THEM' &&  (
-                              <Tooltip title="Huỷ phiếu (hoàn tác)">
-                                <IconButton color="warning" onClick={() => openCancel(r.id, r.code)}>
-                                  <Iconify icon="eva:undo-outline" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
+                            {/* {isAdmin &&
+                              r.status === 'DA_DUYET' &&
+                              r?.type === 'CHI' &&
+                              r?.subtype === 'THEM' && (
+                                <Tooltip title="Huỷ phiếu (hoàn tác)">
+                                  <IconButton
+                                    color="warning"
+                                    onClick={() => openCancel(r.id, r.code)}
+                                  >
+                                    <Iconify icon="eva:undo-outline" />
+                                  </IconButton>
+                                </Tooltip>
+                              )} */}
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -683,9 +681,9 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                       </Typography>
                                     ) : null}
 
-                                    {hasText(r?.partner?.shop_name) ? (
+                                    {hasText(r?.partner?.name) ? (
                                       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                        Đối tác: {String(r.partner.shop_name)}
+                                        Đối tác: {String(r.partner.name)}
                                       </Typography>
                                     ) : null}
                                   </Stack>
@@ -716,8 +714,8 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                   <TableHead>
                                     <TableRow>
                                       <TableCell sx={{ width: 60 }}>#</TableCell>
-                                      
-                                      <TableCell sx={{ width: 180 }}>Vật tư</TableCell>
+
+                                      <TableCell sx={{ width: 200 }}>Tên</TableCell>
                                       <TableCell>Mô tả</TableCell>
                                       <TableCell sx={{ width: 110 }} align="right">
                                         SL
@@ -742,17 +740,20 @@ export default function ReceiptListView({ roles = [] }: Props) {
 
                                   <TableBody>
                                     {(r?.lines || []).map((ln: any) => {
-                                      const itemText = ln?.item
-                                        ? joinParts(
-                                            [ln.item.code, ln.item.name ? `- ${ln.item.name}` : ''],
-                                            ' '
-                                          )
-                                        : '';
+                                      const itemText = joinParts(
+                                        [
+                                          ln?.item?.code,
+                                          ln?.item?.name && `- ${ln.item.name}`,
+                                          ln?.species?.code,
+                                          ln?.species?.name && `- ${ln.species.name}`,
+                                        ],
+                                        ' '
+                                      );
 
                                       return (
                                         <TableRow key={ln.id} hover>
                                           <TableCell>{ln?.line_no ?? '-'}</TableCell>
-                                           <TableCell>
+                                          <TableCell>
                                             {hasText(itemText) ? (
                                               <Typography variant="body2" noWrap title={itemText}>
                                                 {itemText}
@@ -785,16 +786,6 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                                   -
                                                 </Typography>
                                               )}
-
-                                              {hasText(ln?.line_kind) ? (
-                                                <Typography
-                                                  variant="caption"
-                                                  sx={{ color: 'text.secondary' }}
-                                                  noWrap
-                                                >
-                                                  Kind: {String(ln.line_kind)}
-                                                </Typography>
-                                              ) : null}
                                             </Stack>
                                           </TableCell>
 
@@ -820,8 +811,6 @@ export default function ReceiptListView({ roles = [] }: Props) {
                                               {money(ln?.amount_total)}
                                             </Typography>
                                           </TableCell>
-
-                                         
                                         </TableRow>
                                       );
                                     })}
@@ -893,8 +882,8 @@ export default function ReceiptListView({ roles = [] }: Props) {
         receiptId={detailId}
         canApprove={isAdmin}
         onApprove={handleApprove}
-        canCreateChangeRequest
-        onCreateChangeRequest={handleOpenCR}
+        canCancel={isAdmin}
+        onCancel={(id : any, code: any) => openCancel(id, code)}
       />
 
       {/* Change Request */}

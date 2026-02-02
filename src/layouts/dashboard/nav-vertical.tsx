@@ -1,10 +1,15 @@
+/* eslint-disable react/jsx-no-undef */
 import { useEffect } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import { Chip, Typography } from '@mui/material';
+// --------------------------------------
 import Drawer from '@mui/material/Drawer';
 // hooks
 import { useResponsive } from 'src/hooks/use-responsive';
+import { useAuthContext } from 'src/auth/hooks';
+
 import { useMockedUser } from 'src/hooks/use-mocked-user';
 // components
 import Logo from 'src/components/logo';
@@ -16,15 +21,13 @@ import { NAV } from '../config-layout';
 import { useNavData } from './config-navigation';
 import { NavToggleButton, NavUpgrade } from '../_common';
 
-// ----------------------------------------------------------------------
-
 type Props = {
   openNav: boolean;
   onCloseNav: VoidFunction;
 };
 
 export default function NavVertical({ openNav, onCloseNav }: Props) {
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
 
   const pathname = usePathname();
 
@@ -50,7 +53,11 @@ export default function NavVertical({ openNav, onCloseNav }: Props) {
         },
       }}
     >
-      <Logo sx={{ mt: 3, ml: 4, mb: 1 }} />
+      {/* <Logo sx={{ mt: 3, ml: 4, mb: 1 }} /> */}
+      <Typography variant='h5' sx={{ mt: 3, ml: 4, mb: 1 }}>
+        {user?.farm?.name}
+        </Typography>
+      
 
       <NavSectionVertical
         data={navData}
