@@ -71,6 +71,52 @@ function actionChip(s?: string) {
   return <Chip label={s || '-'} size="small" variant="outlined" />;
 }
 
+function statusChip(status?: string) {
+  const k = String(status || '').toUpperCase();
+
+  if (k === 'NHAP') return <Chip label="Nháp" size="small" variant="outlined" />;
+  if (k === 'CHO_DUYET') return <Chip label="Chờ duyệt" size="small" color="warning" variant="outlined" />;
+  if (k === 'DA_DUYET') return <Chip label="Đã duyệt" size="small" color="success" />;
+  if (k === 'DA_CHOT') return <Chip label="Đã chốt" size="small" color="success" />;
+  if (k === 'TU_CHOI') return <Chip label="Từ chối" size="small" color="error" variant="outlined" />;
+  if (k === 'HUY') return <Chip label="Đã huỷ" size="small" color="default" variant="outlined" />;
+
+  return <Chip label={status || '-'} size="small" variant="outlined" />;
+}
+
+function moneyColor(r: any) {
+  const act = String(r?.action || '').toUpperCase();
+  const amt = n(r?.amount, 0);
+
+  // Thu/hoàn tác: xanh. Chi: đỏ.
+  if (act === 'THU') return 'success.main';
+  if (act === 'CHI') return 'error.main';
+
+  // Điều chỉnh: dựa theo dấu amount
+  if (act === 'DIEU_CHINH') {
+    if (amt > 0) return 'success.main';
+    if (amt < 0) return 'error.main';
+    return 'text.primary';
+  }
+
+  // fallback
+  return amt >= 0 ? 'success.main' : 'error.main';
+}
+
+function moneySign(r: any) {
+  const act = String(r?.action || '').toUpperCase();
+  const amt = n(r?.amount, 0);
+
+  if (act === 'CHI') return '-';
+  if (act === 'THU') return '+';
+
+  // DIEU_CHINH/HOAN_TAC: theo dấu
+  if (amt > 0) return '+';
+  if (amt < 0) return '-';
+  return '';
+}
+
+
 function smallChip(label?: string, color?: any) {
   const v = String(label || '').trim();
   if (!v) return <Chip label="-" size="small" variant="outlined" />;
@@ -221,23 +267,37 @@ function ReceiptDetailCard({ receipt }: { receipt: any }) {
               <TableContainer>
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
-                      <TableCell width={50}>STT</TableCell>
-                      <TableCell>Mã / Tên</TableCell>
-                      <TableCell>Mô tả</TableCell>
-                      <TableCell align="right" width={80}>
-                        SL
-                      </TableCell>
-                      <TableCell align="right" width={110}>
-                        Đơn giá
-                      </TableCell>
-                      <TableCell align="right" width={70}>
-                        VAT %
-                      </TableCell>
-                      <TableCell align="right" width={120}>
-                        Thành tiền
-                      </TableCell>
-                    </TableRow>
+                   <TableRow>
+  <TableCell width={50} />
+  <TableCell sx={{ fontWeight: 700 }} width={120}>
+    Hành động
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={160} align="right">
+    Số tiền
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={210}>
+    Phiếu
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={150}>
+    Trạng thái
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={520}>
+    Ghi chú
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={170}>
+    Thời gian
+  </TableCell>
+
+  <TableCell sx={{ fontWeight: 700 }} width={170}>
+    Người tạo
+  </TableCell>
+</TableRow>
+
                   </TableHead>
                   <TableBody>
                     {receipt.lines.map((line: any) => {
@@ -630,12 +690,12 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                 <TableCell sx={{ fontWeight: 700 }} width={150} align="right">
                   Số tiền
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700 }} width={150} align="right">
+                {/* <TableCell sx={{ fontWeight: 700 }} width={150} align="right">
                   Trước
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }} width={150} align="right">
                   Sau
-                </TableCell>
+                </TableCell> */}
                 <TableCell sx={{ fontWeight: 700 }} width={190}>
                   Phiếu
                 </TableCell>
@@ -685,18 +745,27 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                     </TableCell>
                     <TableCell>{actionChip(r.action)}</TableCell>
 
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {fmtMoney(r.amount)}
-                      </Typography>
-                    </TableCell>
+                   <TableCell align="right">
+  <Typography
+    variant="body2"
+    sx={{
+      fontWeight: 800,
+      color: moneyColor(r),
+      fontVariantNumeric: 'tabular-nums',
+    }}
+  >
+    {moneySign(r)}
+    {fmtMoney(r.amount)}
+  </Typography>
+</TableCell>
 
-                    <TableCell align="right" sx={{ opacity: 0.9 }}>
+
+                    {/* <TableCell align="right" sx={{ opacity: 0.9 }}>
                       {fmtMoney(r.balance_before)}
                     </TableCell>
                     <TableCell align="right" sx={{ opacity: 0.9 }}>
                       {fmtMoney(r.balance_after)}
-                    </TableCell>
+                    </TableCell> */}
 
                     <TableCell>
                       {r.receipt?.code ? (
@@ -717,11 +786,22 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                       )}
                     </TableCell>
 
-                    <TableCell>{r.receipt?.status ? smallChip(r.receipt.status) : '-'}</TableCell>
+                    <TableCell>{r.receipt?.status ? statusChip(r.receipt.status) : '-'}</TableCell>
+
 
                     <TableCell>
-                      <Typography variant="body2">{r.note || '-'}</Typography>
-                    </TableCell>
+  <Typography
+    variant="body2"
+    sx={{
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+      lineHeight: 1.35,
+    }}
+  >
+    {r.note || '-'}
+  </Typography>
+</TableCell>
+
 
                     <TableCell>{r.created_at ? fDateTime(r.created_at) : '-'}</TableCell>
                     <TableCell>{r?.creator?.full_name || '-'}</TableCell>
@@ -730,7 +810,7 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                   {/* Expanded row */}
                   {expandedRow === r.id && (
                     <TableRow>
-                      <TableCell colSpan={11} sx={{ py: 0, px: 2 }}>
+                      <TableCell colSpan={8} sx={{ py: 0, px: 2 }}>
                         <Collapse in={expandedRow === r.id} timeout="auto" unmountOnExit>
                           <Box sx={{ py: 2 }}>
                             <ReceiptDetailCard receipt={r.receipt} />
@@ -744,7 +824,7 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
 
               {!rows.length && (
                 <TableRow>
-                  <TableCell colSpan={12} align="center" sx={{ py: 6, opacity: 0.7 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, opacity: 0.7 }}>
                     {loading ? 'Đang tải...' : 'Chưa có lịch sử'}
                   </TableCell>
                 </TableRow>

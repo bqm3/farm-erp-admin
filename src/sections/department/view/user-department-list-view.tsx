@@ -240,9 +240,9 @@ export function DepartmentUserListView() {
                     </Typography>
 
                     {/* ✅ role của manager (nếu API có roles) */}
-                    {d.manager?.full_name && (
+                    {/* {d.manager?.full_name && (
                       <Chip size="small" color={mgrRole.color} label={`Role: ${mgrRole.label}`} />
-                    )}
+                    )} */}
                   </Stack>
 
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>

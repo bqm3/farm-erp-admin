@@ -283,7 +283,6 @@ export default function LeaveRequestListView({
         <Typography variant="h4">Đơn nghỉ phép</Typography>
 
         <Stack direction="row" spacing={1}>
-          {canCreate && (
             <Button
               variant="contained"
               onClick={() => setCreateOpen(true)}
@@ -291,7 +290,6 @@ export default function LeaveRequestListView({
             >
               Tạo đơn
             </Button>
-          )}
 
           <Button
             variant="outlined"

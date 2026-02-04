@@ -168,18 +168,9 @@ export default function LeaveCreateDialog({
 
     if (totalDays === 0.5) {
       if (from !== to) throw new Error('Nghỉ 0.5 ngày thì Từ ngày phải bằng Đến ngày');
-      
     } else {
       setTotalDays(rangeDays);
     }
-
-    // totalDays is integer day options; enforce range match so dữ liệu sạch
-    // const rd = rangeDays;
-    // if (rd <= 0) throw new Error('Khoảng ngày không hợp lệ');
-    // if (totalDays !== rd) {
-
-    //   // throw new Error(`Số ngày (${rd}) không khớp khoảng chọn (${rd}). Hãy chỉnh lại ngày hoặc số ngày.`);
-    // }
   };
 
   const submit = async () => {
@@ -192,7 +183,7 @@ export default function LeaveCreateDialog({
         leave_type: leaveType,
         from_date: from,
         to_date: to,
-        total_days: totalDays,
+        total_days: totalDays === 0.5 ? totalDays : rangeDays,
         reason: reason?.trim() ? reason.trim() : undefined,
       };
 

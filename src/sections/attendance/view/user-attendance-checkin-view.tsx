@@ -14,6 +14,7 @@ import {
   Box,
   MenuItem,
   CircularProgress,
+  Pagination,
 } from '@mui/material';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
@@ -29,6 +30,7 @@ import {
   type UserOption,
 } from 'src/api/attendance';
 import AttendanceCheckInDialog from '../attendance-checkin-dialog';
+import AttendanceCancelHelpDialog from '../attendance-cancel-help-dialog';
 
 function normalizeStatus(s?: string) {
   return String(s || '')
@@ -97,6 +99,15 @@ export default function AttendanceListView() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AttendanceRow[]>([]);
 
+  const [openCancel, setOpenCancel] = useState(false);
+  const [cancelId, setCancelId] = useState<number | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [usersLoading, setUsersLoading] = useState(false);
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const [employeeId, setEmployeeId] = useState<number | ''>('');
@@ -108,8 +119,17 @@ export default function AttendanceListView() {
     return user.full_name || user.username || '';
   }, [user]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [month, year, employeeId]);
+
   const fetchUsers = useCallback(async () => {
-    if (!canCheckInOther) return;
+    if (!canCheckInOther) {
+      setUserOptions([]);
+      setEmployeeId('');
+      return;
+    }
+
     setUsersLoading(true);
     try {
       const res = await listAttendanceUsers();
@@ -128,14 +148,27 @@ export default function AttendanceListView() {
         month,
         year,
         employee_id: canCheckInOther ? (employeeId ? Number(employeeId) : undefined) : undefined,
+        page,
+        page_size: pageSize,
       });
-      setRows(res.data.rows || []);
+
+      setRows(res.data?.rows || []);
+      setTotal(res.data?.total || 0);
+      setTotalPages(res.data?.total_pages || 1);
     } catch (err: any) {
       enqueueSnackbar(err?.message || 'Load failed!', { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [month, year, employeeId, canCheckInOther, enqueueSnackbar]);
+  }, [month, year, employeeId, canCheckInOther, page, pageSize, enqueueSnackbar]);
+
+  const onOpenHelp = useCallback(() => {
+    if (!canCheckInOther) {
+      enqueueSnackbar('Bạn không có quyền chấm công hộ', { variant: 'warning' });
+      return;
+    }
+    setOpenCheckInOther(true);
+  }, [canCheckInOther, enqueueSnackbar]);
 
   useEffect(() => {
     fetchData();
@@ -177,7 +210,7 @@ export default function AttendanceListView() {
           {canCheckInOther && (
             <Button
               variant="outlined"
-              onClick={() => setOpenCheckInOther(true)}
+              onClick={onOpenHelp}
               startIcon={<Iconify icon="solar:user-check-bold" />}
             >
               Chấm công hộ
@@ -232,9 +265,26 @@ export default function AttendanceListView() {
             </TextField>
           )}
 
+          <TextField
+            select
+            label="Số dòng"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            sx={{ width: { xs: 1, sm: 200 } }}
+          >
+            {[12, 24, 48, 96].map((n) => (
+              <MenuItem key={n} value={n}>
+                {n}/trang
+              </MenuItem>
+            ))}
+          </TextField>
+
           <Button
             variant="outlined"
-            onClick={fetchData}
+            onClick={() => {
+              setPage(1);
+              fetchData();
+            }}
             disabled={loading}
             startIcon={
               loading ? <CircularProgress size={18} /> : <Iconify icon="solar:filter-bold" />
@@ -250,6 +300,8 @@ export default function AttendanceListView() {
       <Grid container spacing={2}>
         {rows.map((r) => {
           const st = getStatusMeta(r.status);
+          const isHelp = normalizeStatus(r.status) === 'HELP';
+          const helperName = r.helper?.full_name || r.helper?.username || '-';
 
           return (
             <Grid item xs={12} sm={6} md={4} lg={3} key={r.id}>
@@ -275,6 +327,23 @@ export default function AttendanceListView() {
                           </IconButton>
                         </span>
                       </Tooltip>
+
+                      {isHelp && canCheckInOther && (
+                        <Tooltip title="Huỷ chấm công hộ">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setCancelId(r.id);
+                                setOpenCancel(true);
+                              }}
+                              disabled={loading}
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
                     </Stack>
                   </Stack>
 
@@ -282,6 +351,8 @@ export default function AttendanceListView() {
 
                   <Stack spacing={0.75}>
                     <InfoRow label="Nhân viên" value={r.employee?.full_name || '-'} />
+                    {isHelp && <InfoRow label="Người chấm hộ" value={helperName} />}
+
                     <InfoRow label="Trạng thái" value={st.text} />
                     <InfoRow label="Note" value={r.note || '-'} />
                   </Stack>
@@ -300,13 +371,59 @@ export default function AttendanceListView() {
         )}
       </Grid>
 
-      <AttendanceCheckInDialog
-        open={openCheckInOther}
-        onClose={() => setOpenCheckInOther(false)}
-        users={userOptions}
-        defaultEmployeeId={employeeId ? Number(employeeId) : null}
-        onSuccess={fetchData}
-      />
+      {totalPages > 1 && (
+        <Card sx={{ p: 2, mt: 2 }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Tổng: <b>{total}</b> bản ghi
+            </Typography>
+
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Trang {page}/{totalPages}
+              </Typography>
+
+              {/* MUI Pagination */}
+              <Box>
+                <Pagination
+                  page={page}
+                  count={totalPages}
+                  onChange={(_, v) => setPage(v)}
+                  color="primary"
+                  disabled={loading}
+                />
+              </Box>
+            </Stack>
+          </Stack>
+        </Card>
+      )}
+
+      {canCheckInOther && (
+        <AttendanceCheckInDialog
+          open={openCheckInOther}
+          onClose={() => setOpenCheckInOther(false)}
+          users={userOptions}
+          defaultEmployeeId={employeeId ? Number(employeeId) : null}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {canCheckInOther && (
+        <AttendanceCancelHelpDialog
+          open={openCancel}
+          onClose={() => {
+            setOpenCancel(false);
+            setCancelId(null);
+          }}
+          attendanceId={cancelId}
+          onSuccess={fetchData}
+        />
+      )}
     </Container>
   );
 }

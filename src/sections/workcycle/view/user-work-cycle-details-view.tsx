@@ -79,6 +79,7 @@ const CHANGE_TYPE_LABEL: Record<any, string> = {
   TANG: 'Tăng',
   THEM: 'Thêm',
   GIAM: 'Giảm',
+  HUY: 'Hủy',
   SINH: 'Sinh',
   CHET: 'Chết',
   THU_HOACH: 'Xuất chuồng / Thu hoạch',
@@ -303,84 +304,7 @@ export default function WorkCycleDetailsView() {
 
         {/* TAB 1: logs + stats (mobile cards) */}
         <TabPanel value={tab} index={0}>
-          {/* Logs */}
-          <Card sx={{ p: 2, mb: 2 }} variant="outlined">
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1.5}
-              justifyContent="space-between"
-              alignItems={{ sm: 'center' }}
-            >
-              <Stack spacing={0.25}>
-                <Typography variant="subtitle1">Lịch sử tăng/giảm</Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {logsSummary
-                    ? `+${logsSummary.total_increase || 0} / -${logsSummary.total_decrease || 0}`
-                    : ''}
-                </Typography>
-              </Stack>
-
-              <Button variant="contained" onClick={() => setOpenQty(true)}>
-                Cập nhật số lượng
-              </Button>
-            </Stack>
-
-            <Divider sx={{ my: 1.5 }} />
-
-            <Grid container spacing={1.5}>
-              {logs.map((l) => (
-                <Grid item xs={12} key={l.id}>
-                  <Card variant="outlined" sx={{ p: 1.5 }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="subtitle2" noWrap>
-                            {CHANGE_TYPE_LABEL[l.change_type] || l.change_type}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
-                            {fDate(l.log_date)}
-                          </Typography>
-                        </Box>
-
-                        <Stack direction="row" spacing={1}>
-                          <Label
-                            variant="soft"
-                            color={Number(l.quantity_change) >= 0 ? 'success' : 'error'}
-                          >
-                            {toInt(l.quantity_change) >= 0
-                              ? `+${toInt(l.quantity_change)}`
-                              : toInt(l.quantity_change)}
-                          </Label>
-                        </Stack>
-                      </Stack>
-
-                      <Divider />
-
-                      <Stack direction="row" spacing={2} justifyContent="space-between">
-                        <InfoRow label="Trước" value={toInt(l.quantity_before)} />
-                        <InfoRow label="Sau" value={toInt(l.quantity_after)} />
-                      </Stack>
-
-                      <InfoRow label="Lý do" value={l.reason || '-'} />
-                      <InfoRow
-                        label="Người tạo"
-                        value={l.creator ? l.creator.full_name : l.created_by}
-                      />
-                    </Stack>
-                  </Card>
-                </Grid>
-              ))}
-
-              {logs.length === 0 && (
-                <Grid item xs={12}>
-                  <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
-                    Chưa có log
-                  </Box>
-                </Grid>
-              )}
-            </Grid>
-          </Card>
-
+          
           {/* Stats */}
           <Card sx={{ p: 2 }} variant="outlined">
             <Stack spacing={1.5}>
@@ -464,6 +388,84 @@ export default function WorkCycleDetailsView() {
               </Grid>
             </Stack>
           </Card>
+          {/* Logs */}
+          <Card sx={{ p: 2, mb: 2 }} variant="outlined">
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems={{ sm: 'center' }}
+            >
+              <Stack spacing={0.25}>
+                <Typography variant="subtitle1">Lịch sử tăng/giảm</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {logsSummary
+                    ? `+${logsSummary.total_increase || 0} / -${logsSummary.total_decrease || 0}`
+                    : ''}
+                </Typography>
+              </Stack>
+
+              <Button variant="contained" onClick={() => setOpenQty(true)}>
+                Cập nhật số lượng
+              </Button>
+            </Stack>
+
+            <Divider sx={{ my: 1.5 }} />
+
+            <Grid container spacing={1.5}>
+              {logs.map((l) => (
+                <Grid item xs={12} key={l.id}>
+                  <Card variant="outlined" sx={{ p: 1.5 }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" noWrap>
+                            {CHANGE_TYPE_LABEL[l.change_type] || l.change_type}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                            {fDate(l.log_date)}
+                          </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={1}>
+                          <Label
+                            variant="soft"
+                            color={Number(l.quantity_change) >= 0 ? 'success' : 'error'}
+                          >
+                            {toInt(l.quantity_change) >= 0
+                              ? `+${toInt(l.quantity_change)}`
+                              : toInt(l.quantity_change)}
+                          </Label>
+                        </Stack>
+                      </Stack>
+
+                      <Divider />
+
+                      <Stack direction="row" spacing={2} justifyContent="space-between">
+                        <InfoRow label="Trước" value={toInt(l.quantity_before)} />
+                        <InfoRow label="Sau" value={toInt(l.quantity_after)} />
+                      </Stack>
+
+                      <InfoRow label="Lý do" value={l.reason || '-'} />
+                      <InfoRow
+                        label="Người tạo"
+                        value={l.creator ? l.creator.full_name : l.created_by}
+                      />
+                    </Stack>
+                  </Card>
+                </Grid>
+              ))}
+
+              {logs.length === 0 && (
+                <Grid item xs={12}>
+                  <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                    Chưa có log
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </Card>
+
         </TabPanel>
 
         {/* TAB 2: tasks DONE (mobile cards) */}
@@ -545,7 +547,7 @@ export default function WorkCycleDetailsView() {
 
                       <Stack spacing={0.75}>
                         <InfoRow label="Loại" value={TASK_TYPE_LABEL[t.task_type] || t.task_type} />
-                        <InfoRow label="Thời gian" value={fDateTime(t.due_date)} />
+                        <InfoRow label="Thời gian" value={fDate(t.due_date)} />
                         <InfoRow label="Lý do từ chối" value={t.reject_reason || '-'} />
                       </Stack>
 

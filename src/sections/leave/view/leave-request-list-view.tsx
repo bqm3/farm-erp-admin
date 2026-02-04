@@ -172,7 +172,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h4">Đơn nghỉ phép</Typography>
         <Stack direction="row" spacing={1}>
-          {canApprove && (
+          {/* {canApprove && ( */}
             <Button
               variant="contained"
               onClick={() => setCreateOpen(true)}
@@ -180,7 +180,7 @@ export default function LeaveRequestListView({ canApprove = false, canReject = f
             >
               Tạo đơn
             </Button>
-          )}
+          {/* )} */}
 
           <Button
             variant="outlined"

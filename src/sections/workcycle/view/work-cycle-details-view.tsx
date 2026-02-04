@@ -152,7 +152,7 @@ function canShowReject(status?: string) {
 function canShowClose(status?: string) {
   const s = normalizeStatus(status);
   // chỉ cho đóng khi còn đang làm / đang mở / chờ duyệt
-  return ['OPEN', 'IN_PROGRESS', 'PENDING'].includes(s);
+  return ['IN_PROGRESS'].includes(s);
 }
 
 function taskStatusColor(status?: string) {
@@ -183,7 +183,7 @@ export default function WorkCycleDetailsView() {
   const [openClose, setOpenClose] = useState(false);
 
   const roles: string[] = user?.roles || [];
-  const canApprove = roles.includes('ADMIN');
+  const canApprove = roles.includes('ADMIN') || roles.includes('MANAGER');
 
   const [cycle, setCycle] = useState<WorkCycle | null>(null);
 
@@ -572,7 +572,7 @@ export default function WorkCycleDetailsView() {
                       <TableRow key={`${d.date}-${idx}`} hover>
                         {idx === 0 ? (
                           <>
-                            <TableCell rowSpan={d.changes.length}>{fDateTime(d.date)}</TableCell>
+                            <TableCell rowSpan={d.changes.length}>{fDate(d.date)}</TableCell>
                             <TableCell align="right" rowSpan={d.changes.length}>
                               {d.quantity_start}
                             </TableCell>
@@ -675,7 +675,7 @@ export default function WorkCycleDetailsView() {
 
                   return (
                     <TableRow key={t.id} hover>
-                      <TableCell>{t.created_at ? fDateTime(t.created_at) : '-'}</TableCell>
+                      <TableCell>{t.created_at ? fDate(t.created_at) : '-'}</TableCell>
 
                       <TableCell>
                         <Stack spacing={0.5}>
@@ -690,7 +690,6 @@ export default function WorkCycleDetailsView() {
                         </Stack>
                       </TableCell>
 
-                      {/* Loại: đổi sang tiếng Việt */}
                       <TableCell>
                         <Chip size="small" label={taskTypeLabel(t.task_type)} color={taskStatusColor(t.task_type)}/>
                       </TableCell>
@@ -718,9 +717,9 @@ export default function WorkCycleDetailsView() {
                                 <span>
                                   <Button
                                     size="small"
+                                    color='success'
                                     variant="contained"
                                     onClick={() => handleApprove(t.id)}
-                                    // tránh spam click khi đang close/submit
                                     disabled={closingTaskId === t.id}
                                   >
                                     Duyệt
@@ -837,7 +836,7 @@ export default function WorkCycleDetailsView() {
                     </TableCell>
                     <TableCell>{s.phone || '-'}</TableCell>
                     <TableCell>{s.email || '-'}</TableCell>
-                    <TableCell>{fDateTime(s.work_cycle_staff?.assigned_at)}</TableCell>
+                    <TableCell>{fDate(s.work_cycle_staff?.assigned_at)}</TableCell>
                     <TableCell>{s.work_cycle_staff?.status || '-'}</TableCell>
                     <TableCell>{s.work_cycle_staff?.note || '-'}</TableCell>
                   </TableRow>

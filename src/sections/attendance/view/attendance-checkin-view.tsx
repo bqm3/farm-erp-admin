@@ -227,7 +227,7 @@ export default function AttendanceListView() {
             label="Tháng"
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            sx={{ width: { xs: 1, sm: 160 } }}
+            sx={{ width: { xs: 1, sm: 200 } }}
           >
             {Array.from({ length: 12 }).map((_, i) => {
               const v = i + 1;
@@ -244,7 +244,7 @@ export default function AttendanceListView() {
             type="number"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            sx={{ width: { xs: 1, sm: 160 } }}
+            sx={{ width: { xs: 1, sm: 200 } }}
           />
 
           {canCheckInOther && (

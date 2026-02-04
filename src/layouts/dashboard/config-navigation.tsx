@@ -405,6 +405,7 @@ export function useNavData() {
             path: paths.dashboard.attendance.root,
             icon: ICONS.calendar,
             children: [
+              
               { title: t('Danh sách'), path: paths.dashboard.attendance.checkIn },
             ],
           },
@@ -526,12 +527,6 @@ export function useNavData() {
         subheader: t('management'),
         items: [
           {
-            title: t('user'),
-            path: paths.dashboard.user.root,
-            icon: ICONS.user,
-            children: [ { title: t('profile'), path: paths.dashboard.user.profile }, ],
-          },
-          {
             title: t('Khách hàng'),
             path: paths.dashboard.partner.root,
             icon: ICONS.booking,
@@ -547,7 +542,7 @@ export function useNavData() {
             title: t('user'),
             path: paths.dashboard.user.root,
             icon: ICONS.user,
-            children: [{ title: t('list'), path: paths.dashboard.user.list }],
+            children: [{ title: t('list'), path: paths.dashboard.user.list }, { title: t('profile'), path: paths.dashboard.user.profile },],
           },
           {
             // ITEM CATEGORY

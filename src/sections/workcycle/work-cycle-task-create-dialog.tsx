@@ -100,7 +100,7 @@ export default function WorkCycleTaskCreateDialog({ open, onClose, cycleId, onCr
       <DialogContent sx={{ pt: 1 }}>
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Không cần chọn người giao/nhận — hệ thống sẽ tự lấy mặc định theo user đang đăng nhập / rule backend.
+            Không cần chọn người giao/nhận — hệ thống sẽ tự lấy mặc định theo người tạo.
           </Typography>
 
           <Divider />
