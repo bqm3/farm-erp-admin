@@ -262,7 +262,7 @@ export default function ItemLedgerDialog({ open, warehouseId, stock, onClose }: 
                             <b>Đối tác:</b> {partnerName}
                           </Typography>
                           <Typography variant="body2" sx={{ minWidth: 260 }}>
-                            <b>Công việc:</b> {cycleName}
+                            <b>Vụ/lứa:</b> {cycleName}
                           </Typography>
                         </Stack>
 

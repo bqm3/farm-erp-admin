@@ -398,7 +398,7 @@ export default function ReceiptDetailDialog({
               </Grid>
 
               <Grid item xs={12} md={3}>
-                <Typography variant="subtitle2">Chu kỳ công việc</Typography>
+                <Typography variant="subtitle2">Chu kỳ Vụ/lứa</Typography>
                 <Typography variant="body2">{workCycleText}</Typography>
               </Grid>
 

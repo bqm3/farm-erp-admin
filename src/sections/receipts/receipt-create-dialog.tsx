@@ -28,7 +28,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import Iconify from 'src/components/iconify';
 import type { ReceiptCreatePayload, ReceiptType } from 'src/api/receipts';
-import { listWorkCycles } from 'src/api/workcycle';
+import { getWorkCycle, listWorkCycles } from 'src/api/workcycle';
 import { enqueueSnackbar } from 'src/components/snackbar';
 import { listWarehouses } from 'src/api/warehouse';
 import { listItems } from 'src/api/items';
@@ -67,14 +67,22 @@ type LineForm = {
   vat_percent?: number;
 };
 
-type StockReceiptMode = 'NHAP_KHO' | 'XUAT_KHO' | 'NHAP_LAI' | 'TRA_NCC';
-type SubtypeMode = 'THEM' | 'XUAT' | 'NHAP_LAI' | 'TRA_NCC';
+type StockReceiptMode =
+  | 'NHAP_KHO'
+  | 'XUAT_KHO'
+  | 'NHAP_LAI'
+  | 'TRA_NCC'
+  | 'NHAP_GIONG_BEN_NGOAI'
+  | 'THU_HOACH_BAN_BEN_NGOAI';
+type SubtypeMode = 'THEM' | 'XUAT' | 'NHAP_LAI' | 'TRA_NCC' | 'THU_HOACH' | 'BAN';
 
 const MODE_OPTIONS = [
   { value: 'NHAP_KHO', label: 'Phiếu nhập kho (mua từ nhà phân phối)' },
-  { value: 'XUAT_KHO', label: 'Phiếu xuất kho (cho công việc)' },
-  { value: 'NHAP_LAI', label: 'Phiếu nhập lại (trả từ công việc về kho)' },
+  { value: 'XUAT_KHO', label: 'Phiếu xuất kho (cho Vụ/lứa)' },
+  { value: 'NHAP_LAI', label: 'Phiếu nhập lại (trả từ Vụ/lứa về kho)' },
   { value: 'TRA_NCC', label: 'Phiếu trả nhà cung cấp (xuất kho + hoàn tiền vào quỹ)' },
+  { value: 'NHAP_GIONG_BEN_NGOAI', label: 'Nhập giống (bên ngoài) - Chi' },
+  { value: 'THU_HOACH_BAN_BEN_NGOAI', label: 'Xuất chuồng/Thu hoạch hoặc Bán (bên ngoài) - Thu' },
 ];
 
 const SUBTYPE_OPTIONS = [
@@ -101,6 +109,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [submitting, setSubmitting] = useState(false);
+  const [cycleDetail, setCycleDetail] = useState<any>(null);
 
   const [mode, setMode] = useState<StockReceiptMode>('NHAP_KHO');
   const [subtype, setSubtype] = useState<SubtypeMode>('THEM');
@@ -110,6 +119,8 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     if (mode === 'NHAP_KHO') return 'CHI';
     if (mode === 'XUAT_KHO') return 'THU';
     if (mode === 'TRA_NCC') return 'THU';
+    if (mode === 'NHAP_GIONG_BEN_NGOAI') return 'CHI';
+    if (mode === 'THU_HOACH_BAN_BEN_NGOAI') return 'THU';
     return 'CHI';
   }, [mode]);
 
@@ -118,17 +129,22 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     else if (mode === 'XUAT_KHO') setSubtype('XUAT');
     else if (mode === 'NHAP_LAI') setSubtype('NHAP_LAI');
     else if (mode === 'TRA_NCC') setSubtype('TRA_NCC');
+    else if (mode === 'NHAP_GIONG_BEN_NGOAI') setSubtype('THEM');
+    else if (mode === 'THU_HOACH_BAN_BEN_NGOAI') setSubtype('THU_HOACH'); // default
   }, [mode]);
 
   const isNhapKho = mode === 'NHAP_KHO';
   const isXuatKho = mode === 'XUAT_KHO';
   const isNhapLai = mode === 'NHAP_LAI';
   const isTraNcc = mode === 'TRA_NCC';
+  const isNhapGiongNgoai = mode === 'NHAP_GIONG_BEN_NGOAI';
+  const isThuHoachBanNgoai = mode === 'THU_HOACH_BAN_BEN_NGOAI';
+  const isBenNgoai = isNhapGiongNgoai || isThuHoachBanNgoai;
 
   // ===== Header rules (đồng bộ backend) =====
-  const fundRequired = isNhapKho || isTraNcc;
-  const partnerRequired = isTraNcc;
-  const workCycleRequired = isXuatKho || isNhapLai;
+  const fundRequired = isNhapKho || isTraNcc || isBenNgoai;
+  const partnerRequired = isTraNcc || isBenNgoai;
+  const workCycleRequired = isXuatKho || isNhapLai || isBenNgoai;
 
   const [fund_id, setFundId] = useState<string>('');
   const [funds, setFunds] = useState<{ id: number; name: string }[]>([]);
@@ -196,10 +212,33 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     [items]
   );
 
+  useEffect(() => {
+    const run = async () => {
+      if (!isBenNgoai) {
+        setCycleDetail(null);
+        return;
+      }
+      if (!work_cycle_id) {
+        setCycleDetail(null);
+        return;
+      }
+      try {
+        const res = await getWorkCycle(Number(work_cycle_id));
+        setCycleDetail(res?.data ?? res);
+      } catch (e: any) {
+        setCycleDetail(null);
+        enqueueSnackbar(e?.message || 'Không load được work cycle', { variant: 'error' });
+      }
+    };
+    run();
+  }, [isBenNgoai, work_cycle_id]);
+
   // Clear fields khi switch mode
   useEffect(() => {
-    // partner: chỉ giữ khi NHAP_KHO / TRA_NCC
-    if (!isNhapKho && !isTraNcc) setPartnerId(null);
+    // partner: giữ khi NHAP_KHO / TRA_NCC / BEN_NGOAI
+    if (!isNhapKho && !isTraNcc && !isBenNgoai) setPartnerId(null);
+
+    if (isBenNgoai && isTraNcc) setWorkCycleId('');
 
     // fund: chỉ dùng khi NHAP_KHO / TRA_NCC
     if (isXuatKho || isNhapLai) setFundId('');
@@ -218,13 +257,16 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
         }))
       );
     }
-  }, [isXuatKho, isNhapLai, isNhapKho, isTraNcc]);
+  }, [isXuatKho, isNhapLai, isNhapKho, isTraNcc, isBenNgoai]);
 
   // ===== Quick totals (chỉ meaningful khi có nhập tiền) =====
   const totals = useMemo(() => {
     const totalQty = lines.reduce((s, l) => s + Math.abs(n(l.qty, 0)), 0);
     const beforeVat = lines.reduce((s, l) => s + n(l.unit_price, 0), 0);
-    const vatAmount = lines.reduce((s, l) => s + (n(l.unit_price, 0) * n(l.vat_percent, 0)) / 100, 0);
+    const vatAmount = lines.reduce(
+      (s, l) => s + (n(l.unit_price, 0) * n(l.vat_percent, 0)) / 100,
+      0
+    );
     const total = beforeVat + vatAmount;
 
     return { totalQty, beforeVat, vatAmount, total };
@@ -288,11 +330,23 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
     fetchPartners();
   }, [fetchWorkCycles, fetchFunds, fetchWarehouses, fetchItems, fetchPartners]);
 
+  useEffect(() => {
+    if (!isBenNgoai) return;
+    setLines([makeEmptyLine()]);
+  }, [isBenNgoai]);
+
   // ===== UI helpers =====
-  const showPartnerBox = isNhapKho || isTraNcc;
+  const showPartnerBox = isNhapKho || isTraNcc || isBenNgoai;
   const allowInputMoney = isNhapKho || isTraNcc;
   const disableMoneyField = !allowInputMoney;
   const disableVat = isXuatKho || isNhapLai;
+
+  const speciesId = cycleDetail?.species_id ?? cycleDetail?.species?.id ?? null;
+  const speciesName =
+    cycleDetail?.species?.name ||
+    cycleDetail?.species_name ||
+    (cycleDetail?.species ? cycleDetail.species.name : '') ||
+    '';
 
   const handleSubmit = async () => {
     try {
@@ -300,34 +354,25 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
         alert('Ngày là bắt buộc');
         return;
       }
-
-      if (!warehouse_id) {
-        alert('Bắt buộc chọn kho');
-        return;
-      }
-
       if (fundRequired && !fund_id) {
         alert('Phiếu này bắt buộc chọn quỹ');
         return;
       }
 
       if (partnerRequired && !partner_id) {
-        alert('Trả NCC bắt buộc chọn Nhà cung cấp');
+        alert(isTraNcc ? 'Trả NCC bắt buộc chọn Nhà cung cấp' : 'Phiếu này bắt buộc chọn Đối tác');
         return;
       }
 
       if (workCycleRequired && !work_cycle_id) {
-        alert('Phiếu này bắt buộc chọn Công việc');
+        alert('Phiếu này bắt buộc chọn Vụ/lứa');
         return;
       }
 
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
 
-        if (!l.item_id) {
-          alert(`Dòng #${i + 1}: Chưa chọn Item`);
-          return;
-        }
+      
 
         const q = Number(l.qty || 0);
         if (!(q > 0)) {
@@ -344,27 +389,45 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
         }
       }
 
+      const line0 = lines[0];
+      const q = Number(line0?.qty || 0);
+      const totalBeforeVat = Number(line0?.unit_price || 0);
+      const unitPriceNgoai = q > 0 ? totalBeforeVat / q : 0;
+
       setSubmitting(true);
 
       const payload: any = {
         type,
         subtype,
         fund_id: fundRequired ? Number(fund_id) : null,
-        partner_id: (isNhapKho || isTraNcc) && partner_id ? Number(partner_id) : null,
+        partner_id: showPartnerBox && partner_id ? Number(partner_id) : null,
         work_cycle_id: workCycleRequired ? Number(work_cycle_id) : null,
-        source: 'KHO',
-        warehouse_id: Number(warehouse_id),
+        source: isBenNgoai ? 'BEN_NGOAI' : 'KHO',
+        warehouse_id: isBenNgoai ? null : Number(warehouse_id),
         receipt_date,
         note: note || null,
-        lines: lines.map((l) => ({
-          line_kind: l.item_id ? 'VAT_TU' :'GIONG',
-          item_id: l.item_id ? Number(l.item_id) : null,
-          description: l.description || null,
-          qty: Number(l.qty || 0),
-          unit: l.unit || null,
-          unit_price: Number(l.unit_price || 0),
-          vat_percent: Number(l.vat_percent || 0),
-        })),
+        lines: isBenNgoai
+          ? [
+              {
+                line_kind: 'GIONG', // hoặc giữ theo BE của bạn
+                species_id: speciesId ? Number(speciesId) : null,
+                item_id: null,
+                description: (line0?.description || '').trim() || null,
+                qty: q,
+                unit: line0?.unit || null,
+                unit_price: Number(unitPriceNgoai), // ✅ đơn giá
+                vat_percent: Number(line0?.vat_percent || 0),
+              },
+            ]
+          : lines.map((l) => ({
+              line_kind: l.item_id ? 'VAT_TU' : 'GIONG', // (cái này bạn đang dùng hơi lạ nhưng giữ nguyên nếu BE đang cần)
+              item_id: l.item_id ? Number(l.item_id) : null,
+              description: l.description || null,
+              qty: Number(l.qty || 0),
+              unit: l.unit || null,
+              unit_price: Number(l.unit_price || 0), // ✅ tổng tiền dòng (trước VAT) như hiện tại
+              vat_percent: Number(l.vat_percent || 0),
+            })),
       };
 
       await onSubmit(payload as ReceiptCreatePayload);
@@ -429,10 +492,16 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                   value={subtype}
                   onChange={(e) => setSubtype(e.target.value as SubtypeMode)}
                   fullWidth
-                  disabled
+                  disabled={!isThuHoachBanNgoai} // ✅ chỉ mode này mới được đổi
                   helperText={subtypeHelper}
                 >
-                  {SUBTYPE_OPTIONS.map((opt) => (
+                  {(isThuHoachBanNgoai
+                    ? [
+                        { value: 'THU_HOACH', label: 'Xuất chuồng / Thu hoạch' },
+                        { value: 'BAN', label: 'Bán' },
+                      ]
+                    : SUBTYPE_OPTIONS
+                  ).map((opt) => (
                     <MenuItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </MenuItem>
@@ -485,28 +554,30 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  label="Kho hàng *"
-                  value={warehouse_id}
-                  onChange={(e) => setWarehouseId(e.target.value)}
-                  fullWidth
-                  error={!warehouse_id}
-                  helperText={!warehouse_id ? 'Bắt buộc chọn kho' : ' '}
-                >
-                  {warehouses.map((wh) => (
-                    <MenuItem key={wh.id} value={wh.id}>
-                      {wh.code} - {wh.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
+              {!isBenNgoai && (
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    select
+                    label="Kho hàng *"
+                    value={warehouse_id}
+                    onChange={(e) => setWarehouseId(e.target.value)}
+                    fullWidth
+                    error={!warehouse_id}
+                    helperText={!warehouse_id ? 'Bắt buộc chọn kho' : ' '}
+                  >
+                    {warehouses.map((wh) => (
+                      <MenuItem key={wh.id} value={wh.id}>
+                        {wh.code} - {wh.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              )}
 
               <Grid item xs={12} md={6}>
                 <TextField
                   select
-                  label={`Công việc ${workCycleRequired ? ' *' : ''}`}
+                  label={`Vụ/lứa ${workCycleRequired ? ' *' : ''}`}
                   value={work_cycle_id}
                   onChange={(e) => setWorkCycleId(e.target.value)}
                   fullWidth
@@ -515,11 +586,11 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                   disabled={isTraNcc}
                   helperText={
                     isTraNcc
-                      ? 'Trả NCC: không cần công việc'
+                      ? 'Trả NCC: không cần Vụ/lứa'
                       : isXuatKho
-                      ? 'Xuất kho bắt buộc chọn công việc'
+                      ? 'Xuất kho bắt buộc chọn Vụ/lứa'
                       : isNhapLai
-                      ? 'Nhập lại bắt buộc chọn công việc (để biết trả từ đâu)'
+                      ? 'Nhập lại bắt buộc chọn Vụ/lứa (để biết trả từ đâu)'
                       : ' '
                   }
                 >
@@ -550,11 +621,23 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label={isTraNcc ? 'Nhà cung cấp *' : 'Nhà cung cấp - tuỳ chọn'}
+                        label={
+                          isTraNcc
+                            ? 'Nhà cung cấp *'
+                            : isBenNgoai
+                            ? 'Đối tác *' // hoặc "Nhà cung cấp/Khách hàng *" tuỳ bạn
+                            : 'Nhà cung cấp - tuỳ chọn'
+                        }
                         fullWidth
                         required={partnerRequired}
                         error={partnerRequired && !partner_id}
-                        helperText={isTraNcc ? 'Trả NCC bắt buộc chọn nhà cung cấp' : ' '}
+                        helperText={
+                          isTraNcc
+                            ? 'Trả NCC bắt buộc chọn nhà cung cấp'
+                            : isBenNgoai
+                            ? 'Phiếu này bắt buộc chọn đối tác'
+                            : ' '
+                        }
                       />
                     )}
                   />
@@ -620,8 +703,8 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
               {isNhapKho && (
                 <Grid item xs={12}>
                   <Alert severity="info">
-                    Phiếu <b>NHẬP KHO</b> là mua từ nhà phân phối: bắt buộc chọn <b>Quỹ</b>, mỗi dòng
-                    bắt buộc nhập <b>Tổng tiền dòng (trước VAT)</b>.
+                    Phiếu <b>NHẬP KHO</b> là mua từ nhà phân phối: bắt buộc chọn <b>Quỹ</b>, mỗi
+                    dòng bắt buộc nhập <b>Tổng tiền dòng (trước VAT)</b>.
                   </Alert>
                 </Grid>
               )}
@@ -629,7 +712,7 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
               {isXuatKho && (
                 <Grid item xs={12}>
                   <Alert severity="info">
-                    Phiếu <b>Xuất kho</b> không động quỹ (di chuyển nội bộ). Bắt buộc chọn công việc.
+                    Phiếu <b>Xuất kho</b> không động quỹ (di chuyển nội bộ). Bắt buộc chọn Vụ/lứa.
                     Giá vốn được tính khi duyệt.
                   </Alert>
                 </Grid>
@@ -639,12 +722,13 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                 <Grid item xs={12}>
                   <Alert severity="info">
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      Phiếu <b>NHẬP LẠI</b> - Trả vật tư dư thừa từ công việc về kho
+                      Phiếu <b>NHẬP LẠI</b> - Trả vật tư dư thừa từ Vụ/lứa về kho
                     </Typography>
                     <Typography variant="body2">
                       • VD: Xuất 100 bao → dùng 80 → trả lại 20 bao
                       <br />• <b>Không động quỹ:</b> tiền đã trả lúc mua
-                      <br />• Khi duyệt: Tồn kho <b>+20</b> • Công việc <b>-20</b> • Quỹ <b>KHÔNG ĐỔI</b>
+                      <br />• Khi duyệt: Tồn kho <b>+20</b> • Vụ/lứa <b>-20</b> • Quỹ{' '}
+                      <b>KHÔNG ĐỔI</b>
                       <br />• Giá vốn tự động: lấy theo giá trung bình kho
                     </Typography>
                   </Alert>
@@ -660,7 +744,8 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                     <Typography variant="body2">
                       • Bắt buộc chọn <b>Quỹ</b> để hoàn tiền và chọn <b>Nhà cung cấp</b>
                       <br />• Mỗi dòng bắt buộc nhập <b>Tổng tiền dòng (trước VAT)</b>
-                      <br />• Khi duyệt: Kho <b>giảm</b> theo số lượng • Quỹ <b>tăng</b> theo số tiền hoàn
+                      <br />• Khi duyệt: Kho <b>giảm</b> theo số lượng • Quỹ <b>tăng</b> theo số
+                      tiền hoàn
                     </Typography>
                   </Alert>
                 </Grid>
@@ -712,79 +797,229 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
           </Stack>
 
           <Stack spacing={1.5}>
-            {lines.map((l, idx) => {
-              const selected = findItemById(l.item_id ?? null);
+            {isBenNgoai ? (
+              <Card variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Giống/loài"
+                    value={speciesName || '—'}
+                    fullWidth
+                    disabled
+                    error={workCycleRequired && !!work_cycle_id && !speciesId}
+                    helperText={
+                      !work_cycle_id
+                        ? 'Bắt buộc chọn Vụ/lứa'
+                        : !speciesId
+                        ? 'Vụ/lứa chưa có giống/loài'
+                        : ' '
+                    }
+                  />
 
-              const moneyHelper = isXuatKho
-                ? 'Xuất: giá vốn tính khi duyệt'
-                : isNhapLai
-                ? 'Nhập lại: giá vốn tự động'
-                : isTraNcc
-                ? 'Bắt buộc nhập: số tiền hoàn * dòng'
-                : 'Giá tiền * số lượng';
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <TextField
+                      label="Số lượng"
+                      type="number"
+                      value={lines[0]?.qty ?? 1}
+                      onChange={(e) => handleChangeLine(0, { qty: Number(e.target.value) })}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Tổng tiền (trước VAT)"
+                      value={lines[0]?.unit_price_text ?? formatMoney(lines[0]?.unit_price ?? 0)}
+                      onChange={(e) => applyMoneyInput(0, e.target.value)}
+                      inputProps={{ inputMode: 'numeric' }}
+                      fullWidth
+                    />
+                  </Stack>
 
-              // ===== Mobile =====
-              if (isMobile) {
-                return (
-                  <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                    <Stack spacing={1.25}>
-                      <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="subtitle2">Dòng #{idx + 1}</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <TextField
+                      label="VAT %"
+                      type="number"
+                      value={lines[0]?.vat_percent ?? 0}
+                      onChange={(e) => handleChangeLine(0, { vat_percent: Number(e.target.value) })}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Miêu tả"
+                      value={lines[0]?.description ?? ''}
+                      onChange={(e) => handleChangeLine(0, { description: e.target.value })}
+                      fullWidth
+                    />
+                  </Stack>
+                </Stack>
+              </Card>
+            ) : (
+              <>
+                {lines.map((l, idx) => {
+                  const selected = findItemById(l.item_id ?? null);
 
-                        <IconButton
-                          color="error"
-                          onClick={() => handleRemoveLine(idx)}
-                          disabled={lines.length === 1}
-                        >
-                          <Iconify icon="eva:trash-2-outline" />
-                        </IconButton>
-                      </Stack>
+                  const moneyHelper = isXuatKho
+                    ? 'Xuất: giá vốn tính khi duyệt'
+                    : isNhapLai
+                    ? 'Nhập lại: giá vốn tự động'
+                    : isTraNcc
+                    ? 'Bắt buộc nhập: số tiền hoàn * dòng'
+                    : 'Giá tiền * số lượng';
 
-                      <Autocomplete
-                        options={items}
-                        value={selected}
-                        onChange={(_, v) => {
-                          handleChangeLine(idx, {
-                            item_id: v?.id ?? null,
-                            unit: v?.unit ?? l.unit ?? '',
-                          });
-                        }}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        getOptionLabel={(o) => `${o.code ? `${o.code} - ` : ''}${o.name}`}
-                        renderInput={(params) => (
-                          <TextField {...params} label="Chọn hàng hoá (Item)" fullWidth />
-                        )}
-                      />
+                  // ===== Mobile =====
+                  if (isMobile) {
+                    return (
+                      <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                        <Stack spacing={1.25}>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Typography variant="subtitle2">Dòng #{idx + 1}</Typography>
 
-                      <TextField
-                        label="Miêu tả"
-                        value={l.description ?? ''}
-                        onChange={(e) => handleChangeLine(idx, { description: e.target.value })}
-                        fullWidth
-                      />
+                            <IconButton
+                              color="error"
+                              onClick={() => handleRemoveLine(idx)}
+                              disabled={lines.length === 1}
+                            >
+                              <Iconify icon="eva:trash-2-outline" />
+                            </IconButton>
+                          </Stack>
 
-                      <Grid container spacing={1.25}>
-                        <Grid item xs={6}>
+                          <Autocomplete
+                            options={items}
+                            value={selected}
+                            onChange={(_, v) => {
+                              handleChangeLine(idx, {
+                                item_id: v?.id ?? null,
+                                unit: v?.unit ?? l.unit ?? '',
+                              });
+                            }}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            getOptionLabel={(o) => `${o.code ? `${o.code} - ` : ''}${o.name}`}
+                            renderInput={(params) => (
+                              <TextField {...params} label="Chọn hàng hoá (Item)" fullWidth />
+                            )}
+                          />
+
+                          <TextField
+                            label="Miêu tả"
+                            value={l.description ?? ''}
+                            onChange={(e) => handleChangeLine(idx, { description: e.target.value })}
+                            fullWidth
+                          />
+
+                          <Grid container spacing={1.25}>
+                            <Grid item xs={6}>
+                              <TextField
+                                label="Số lượng"
+                                type="number"
+                                value={l.qty}
+                                onChange={(e) =>
+                                  handleChangeLine(idx, { qty: Number(e.target.value) })
+                                }
+                                fullWidth
+                                inputProps={{ min: 0 }}
+                              />
+                            </Grid>
+
+                            <Grid item xs={6}>
+                              <TextField
+                                label="Đơn vị"
+                                value={l.unit ?? ''}
+                                onChange={(e) => handleChangeLine(idx, { unit: e.target.value })}
+                                fullWidth
+                              />
+                            </Grid>
+
+                            <Grid item xs={7}>
+                              <TextField
+                                label="Tổng tiền dòng (trước VAT)"
+                                value={l.unit_price_text ?? formatMoney(l.unit_price ?? 0)}
+                                onChange={(e) => applyMoneyInput(idx, e.target.value)}
+                                onBlur={() =>
+                                  handleChangeLine(idx, {
+                                    unit_price_text: formatMoney(n(l.unit_price, 0)),
+                                  })
+                                }
+                                inputProps={{ inputMode: 'numeric' }}
+                                fullWidth
+                                disabled={disableMoneyField}
+                                required={isNhapKho || isTraNcc}
+                                helperText={moneyHelper}
+                              />
+                            </Grid>
+
+                            <Grid item xs={5}>
+                              <TextField
+                                label="VAT %"
+                                type="number"
+                                value={l.vat_percent ?? 0}
+                                onChange={(e) =>
+                                  handleChangeLine(idx, { vat_percent: Number(e.target.value) })
+                                }
+                                fullWidth
+                                disabled={disableVat}
+                              />
+                            </Grid>
+                          </Grid>
+                        </Stack>
+                      </Card>
+                    );
+                  }
+
+                  // ===== Desktop =====
+                  return (
+                    <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                      <Stack spacing={1}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between">
+                          <Typography variant="subtitle2">Dòng #{idx + 1}</Typography>
+                          <IconButton
+                            color="error"
+                            onClick={() => handleRemoveLine(idx)}
+                            disabled={lines.length === 1}
+                          >
+                            <Iconify icon="eva:trash-2-outline" />
+                          </IconButton>
+                        </Stack>
+
+                        <Divider />
+
+                        <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="nowrap">
+                          <Autocomplete
+                            options={items}
+                            value={selected}
+                            onChange={(_, v) => {
+                              handleChangeLine(idx, {
+                                item_id: v?.id ?? null,
+                                unit: v?.unit ?? l.unit ?? '',
+                              });
+                            }}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            getOptionLabel={(o) => `${o.code ? `${o.code} - ` : ''}${o.name}`}
+                            renderInput={(params) => (
+                              <TextField {...params} label="Item" fullWidth />
+                            )}
+                            sx={{ flex: 2 }}
+                          />
+
+                          <TextField
+                            label="Miêu tả"
+                            value={l.description ?? ''}
+                            onChange={(e) => handleChangeLine(idx, { description: e.target.value })}
+                            fullWidth
+                            sx={{ flex: 2 }}
+                          />
+
                           <TextField
                             label="Số lượng"
                             type="number"
                             value={l.qty}
                             onChange={(e) => handleChangeLine(idx, { qty: Number(e.target.value) })}
-                            fullWidth
+                            sx={{ width: 120 }}
                             inputProps={{ min: 0 }}
                           />
-                        </Grid>
 
-                        <Grid item xs={6}>
                           <TextField
                             label="Đơn vị"
                             value={l.unit ?? ''}
                             onChange={(e) => handleChangeLine(idx, { unit: e.target.value })}
-                            fullWidth
+                            sx={{ width: 120 }}
                           />
-                        </Grid>
 
-                        <Grid item xs={7}>
                           <TextField
                             label="Tổng tiền dòng (trước VAT)"
                             value={l.unit_price_text ?? formatMoney(l.unit_price ?? 0)}
@@ -795,115 +1030,29 @@ export default function ReceiptCreateDialog({ open, onClose, onSubmit }: Props) 
                               })
                             }
                             inputProps={{ inputMode: 'numeric' }}
-                            fullWidth
+                            sx={{ width: 240 }}
                             disabled={disableMoneyField}
                             required={isNhapKho || isTraNcc}
                             helperText={moneyHelper}
                           />
-                        </Grid>
 
-                        <Grid item xs={5}>
                           <TextField
                             label="VAT %"
                             type="number"
                             value={l.vat_percent ?? 0}
-                            onChange={(e) => handleChangeLine(idx, { vat_percent: Number(e.target.value) })}
-                            fullWidth
+                            onChange={(e) =>
+                              handleChangeLine(idx, { vat_percent: Number(e.target.value) })
+                            }
+                            sx={{ width: 110 }}
                             disabled={disableVat}
                           />
-                        </Grid>
-                      </Grid>
-                    </Stack>
-                  </Card>
-                );
-              }
-
-              // ===== Desktop =====
-              return (
-                <Card key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Typography variant="subtitle2">Dòng #{idx + 1}</Typography>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleRemoveLine(idx)}
-                        disabled={lines.length === 1}
-                      >
-                        <Iconify icon="eva:trash-2-outline" />
-                      </IconButton>
-                    </Stack>
-
-                    <Divider />
-
-                    <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="nowrap">
-                      <Autocomplete
-                        options={items}
-                        value={selected}
-                        onChange={(_, v) => {
-                          handleChangeLine(idx, {
-                            item_id: v?.id ?? null,
-                            unit: v?.unit ?? l.unit ?? '',
-                          });
-                        }}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        getOptionLabel={(o) => `${o.code ? `${o.code} - ` : ''}${o.name}`}
-                        renderInput={(params) => <TextField {...params} label="Item" fullWidth />}
-                        sx={{ flex: 2 }}
-                      />
-
-                      <TextField
-                        label="Miêu tả"
-                        value={l.description ?? ''}
-                        onChange={(e) => handleChangeLine(idx, { description: e.target.value })}
-                        fullWidth
-                        sx={{ flex: 2 }}
-                      />
-
-                      <TextField
-                        label="Số lượng"
-                        type="number"
-                        value={l.qty}
-                        onChange={(e) => handleChangeLine(idx, { qty: Number(e.target.value) })}
-                        sx={{ width: 120 }}
-                        inputProps={{ min: 0 }}
-                      />
-
-                      <TextField
-                        label="Đơn vị"
-                        value={l.unit ?? ''}
-                        onChange={(e) => handleChangeLine(idx, { unit: e.target.value })}
-                        sx={{ width: 120 }}
-                      />
-
-                      <TextField
-                        label="Tổng tiền dòng (trước VAT)"
-                        value={l.unit_price_text ?? formatMoney(l.unit_price ?? 0)}
-                        onChange={(e) => applyMoneyInput(idx, e.target.value)}
-                        onBlur={() =>
-                          handleChangeLine(idx, {
-                            unit_price_text: formatMoney(n(l.unit_price, 0)),
-                          })
-                        }
-                        inputProps={{ inputMode: 'numeric' }}
-                        sx={{ width: 240 }}
-                        disabled={disableMoneyField}
-                        required={isNhapKho || isTraNcc}
-                        helperText={moneyHelper}
-                      />
-
-                      <TextField
-                        label="VAT %"
-                        type="number"
-                        value={l.vat_percent ?? 0}
-                        onChange={(e) => handleChangeLine(idx, { vat_percent: Number(e.target.value) })}
-                        sx={{ width: 110 }}
-                        disabled={disableVat}
-                      />
-                    </Stack>
-                  </Stack>
-                </Card>
-              );
-            })}
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  );
+                })}
+              </>
+            )}
           </Stack>
 
           <Box sx={{ height: 4 }} />

@@ -660,7 +660,7 @@ export default function WorkCycleReceiptListView({
                   </Typography>
 
                   <Typography variant="body2">
-                    Công việc: <b>{displayTask(detailRow)}</b>
+                    Vụ/lứa: <b>{displayTask(detailRow)}</b>
                   </Typography>
                 </Stack>
               </Stack>

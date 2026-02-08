@@ -75,10 +75,12 @@ function statusChip(status?: string) {
   const k = String(status || '').toUpperCase();
 
   if (k === 'NHAP') return <Chip label="Nháp" size="small" variant="outlined" />;
-  if (k === 'CHO_DUYET') return <Chip label="Chờ duyệt" size="small" color="warning" variant="outlined" />;
+  if (k === 'CHO_DUYET')
+    return <Chip label="Chờ duyệt" size="small" color="warning" variant="outlined" />;
   if (k === 'DA_DUYET') return <Chip label="Đã duyệt" size="small" color="success" />;
   if (k === 'DA_CHOT') return <Chip label="Đã chốt" size="small" color="success" />;
-  if (k === 'TU_CHOI') return <Chip label="Từ chối" size="small" color="error" variant="outlined" />;
+  if (k === 'TU_CHOI')
+    return <Chip label="Từ chối" size="small" color="error" variant="outlined" />;
   if (k === 'HUY') return <Chip label="Đã huỷ" size="small" color="default" variant="outlined" />;
 
   return <Chip label={status || '-'} size="small" variant="outlined" />;
@@ -115,7 +117,6 @@ function moneySign(r: any) {
   if (amt < 0) return '-';
   return '';
 }
-
 
 function smallChip(label?: string, color?: any) {
   const v = String(label || '').trim();
@@ -267,37 +268,34 @@ function ReceiptDetailCard({ receipt }: { receipt: any }) {
               <TableContainer>
                 <Table size="small">
                   <TableHead>
-                   <TableRow>
-  <TableCell width={50} />
-  <TableCell sx={{ fontWeight: 700 }} width={120}>
-    Hành động
-  </TableCell>
+                    <TableRow>
+                      <TableCell width={50} />
+                      <TableCell sx={{ fontWeight: 700 }} width={120}>
+                        Vật nuôi/ cây trồng
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={160} align="right">
-    Số tiền
-  </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} width={120} >
+                        Ghi chú
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={210}>
-    Phiếu
-  </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} width={120}>
+                        Số lượng
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={150}>
-    Trạng thái
-  </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} width={150}>
+                        Đơn giá
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={520}>
-    Ghi chú
-  </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} width={100}>
+                        VAT
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={170}>
-    Thời gian
-  </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} width={170}>
+                        Tổng tiền
+                      </TableCell>
 
-  <TableCell sx={{ fontWeight: 700 }} width={170}>
-    Người tạo
-  </TableCell>
-</TableRow>
-
+                   
+                    </TableRow>
                   </TableHead>
                   <TableBody>
                     {receipt.lines.map((line: any) => {
@@ -324,10 +322,10 @@ function ReceiptDetailCard({ receipt }: { receipt: any }) {
                               {line.description || '-'}
                             </Typography>
                           </TableCell>
-                          <TableCell align="right">{fmtMoney(line.qty)}</TableCell>
-                          <TableCell align="right">{fmtMoney(line.unit_price)}</TableCell>
-                          <TableCell align="right">{line.vat_percent}%</TableCell>
-                          <TableCell align="right">
+                          <TableCell>{fmtMoney(line.qty)}</TableCell>
+                          <TableCell>{fmtMoney(line.unit_price)}</TableCell>
+                          <TableCell>{Number(line.vat_percent)}%</TableCell>
+                          <TableCell>
                             <Typography variant="body2" fontWeight={700}>
                               {fmtMoney(line.amount_total)}
                             </Typography>
@@ -464,7 +462,7 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
         .replaceAll(/[\\/:*?"<>|]/g, '_')
         .slice(0, 80);
 
-      saveBlob(blob, `fund-ledgers-${safeFundName}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      saveBlob(blob, `${safeFundName}-${new Date().toISOString().slice(0, 10)}.xlsx`);
       enqueueSnackbar('Xuất Excel thành công', { variant: 'success' });
     } catch (e: any) {
       enqueueSnackbar(e?.message || 'Xuất Excel thất bại', { variant: 'error' });
@@ -545,8 +543,8 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
               <MenuItem value="">Tất cả</MenuItem>
               <MenuItem value="THU">THU</MenuItem>
               <MenuItem value="CHI">CHI</MenuItem>
-              <MenuItem value="DIEU_CHINH">DIEU_CHINH</MenuItem>
-              <MenuItem value="HOAN_TAC">HOAN_TAC</MenuItem>
+              <MenuItem value="DIEU_CHINH">Điều chỉnh</MenuItem>
+              <MenuItem value="HOAN_TAC">Hoàn tác</MenuItem>
             </TextField>
 
             <TextField
@@ -704,7 +702,7 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                   Trạng thái
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Ghi chú</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} width={170}>
+                <TableCell sx={{ fontWeight: 700 }} width={190}>
                   Thời gian
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }} width={170}>
@@ -745,20 +743,19 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
                     </TableCell>
                     <TableCell>{actionChip(r.action)}</TableCell>
 
-                   <TableCell align="right">
-  <Typography
-    variant="body2"
-    sx={{
-      fontWeight: 800,
-      color: moneyColor(r),
-      fontVariantNumeric: 'tabular-nums',
-    }}
-  >
-    {moneySign(r)}
-    {fmtMoney(r.amount)}
-  </Typography>
-</TableCell>
-
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 800,
+                          color: moneyColor(r),
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {moneySign(r)}
+                        {fmtMoney(r.amount)}
+                      </Typography>
+                    </TableCell>
 
                     {/* <TableCell align="right" sx={{ opacity: 0.9 }}>
                       {fmtMoney(r.balance_before)}
@@ -788,20 +785,18 @@ export default function FundLedgerDialog({ open, onClose, fund }: Props) {
 
                     <TableCell>{r.receipt?.status ? statusChip(r.receipt.status) : '-'}</TableCell>
 
-
                     <TableCell>
-  <Typography
-    variant="body2"
-    sx={{
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-word',
-      lineHeight: 1.35,
-    }}
-  >
-    {r.note || '-'}
-  </Typography>
-</TableCell>
-
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {r.note || '-'}
+                      </Typography>
+                    </TableCell>
 
                     <TableCell>{r.created_at ? fDateTime(r.created_at) : '-'}</TableCell>
                     <TableCell>{r?.creator?.full_name || '-'}</TableCell>
